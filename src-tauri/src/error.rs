@@ -18,6 +18,9 @@ pub enum AppError {
     #[error("HTTP 错误: {0}")]
     Http(#[from] reqwest::Error),
 
+    #[error("请求头错误: {0}")]
+    Header(#[from] reqwest::header::InvalidHeaderValue),
+
     #[error("cURL 解析错误: {0}")]
     Curl(String),
 

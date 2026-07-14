@@ -218,7 +218,7 @@ pub fn parse(input: &str) -> AppResult<Request> {
             // 如果 -G,把 -d 数据并入 query
             if use_get && !data_parts.is_empty() {
                 let joined = data_parts.join("&");
-                for kv in parse_kv_string(&joined) {
+                for _kv in parse_kv_string(&joined) {
                     headers.retain(|h| !h.key.eq_ignore_ascii_case("Content-Type"));
                     // 这部分会作为 query 拼到 URL,这里用 headers 暂时存一下
                     // 实际上应该走 params,我们在外层处理

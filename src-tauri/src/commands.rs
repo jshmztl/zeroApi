@@ -145,7 +145,7 @@ pub struct ImportArgs {
 pub async fn import_json(state: State<'_, AppState>, args: ImportArgs) -> AppResult<ImportPayload> {
     let payload: ExportPayload = serde_json::from_str(&args.content)
         .map_err(|e| AppError::Other(format!("JSON 解析失败: {}", e)))?;
-    let mut out = ImportPayload {
+    let out = ImportPayload {
         requests: payload.requests.clone(),
         collections: payload.collections.clone(),
         environments: payload.environments.clone(),
