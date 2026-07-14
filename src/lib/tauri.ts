@@ -1,0 +1,61 @@
+// Tauri IPC 封装
+import { invoke } from "@tauri-apps/api/core";
+import type {
+  Request,
+  ResponseSnapshot,
+  HistoryItem,
+  Favorite,
+  Collection,
+  Environment,
+  Settings,
+  ImportPayload,
+  ExportPayload,
+} from "@/types";
+
+export const tauri = {
+  sendRequest: (request: Request) =>
+    invoke<ResponseSnapshot>("send_request", { request }),
+  saveRequest: (request: Request) =>
+    invoke<string>("save_request", { request }),
+  deleteRequest: (id: string) =>
+    invoke<void>("delete_request", { id }),
+
+  listHistory: (limit = 100) =>
+    invoke<HistoryItem[]>("list_history", { limit }),
+  clearHistory: () => invoke<void>("clear_history"),
+
+  listFavorites: () => invoke<Favorite[]>("list_favorites"),
+  addFavorite: (request: Request) =>
+    invoke<string>("add_favorite", { request }),
+  removeFavorite: (id: string) =>
+    invoke<void>("remove_favorite", { id }),
+
+  listCollections: () => invoke<Collection[]>("list_collections"),
+  saveCollection: (collection: Collection) =>
+    invoke<string>("save_collection", { collection }),
+  deleteCollection: (id: string) =>
+    invoke<void>("delete_collection", { id }),
+
+  listEnvironments: () => invoke<Environment[]>("list_environments"),
+  saveEnvironment: (env: Environment) =>
+    invoke<string>("save_environment", { env }),
+  deleteEnvironment: (id: string) =>
+    invoke<void>("delete_environment", { id }),
+
+  importCurl: (command: string) =>
+    invoke<Request>("import_curl", { command }),
+
+  importJson: (content: string) =>
+    invoke<ImportPayload>("import_json", { args: { content } }),
+  exportJson: (collections?: Collection[], environments?: Environment[]) =>
+    invoke<string>("export_json", { collections, environments }),
+
+  getSettings: () => invoke<Settings>("get_settings"),
+  saveSettings: (settings: Settings) =>
+    invoke<void>("save_settings", { settings }),
+
+  clearAllData: () => invoke<void>("clear_all_data"),
+  appVersion: () => invoke<string>("app_version"),
+};
+
+export type { ExportPayload };
