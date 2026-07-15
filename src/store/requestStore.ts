@@ -3,6 +3,7 @@ import type { Request, ResponseSnapshot, KeyValue, Body, Auth, RequestStatus } f
 import { makeEmptyRequest } from '@/types';
 import { tauri } from '@/lib/tauri';
 import { nanoid } from '@/lib/nanoid';
+import { useDataStore } from '@/store/dataStore';
 
 interface RequestState {
   request: Request;
@@ -59,6 +60,8 @@ export const useRequestStore = create<RequestState>((set, get) => ({
     try {
       const resp = await tauri.sendRequest(request, clientId);
       set({ response: resp, loading: false, clientId: null });
+      // 确保历史刷新
+      useDataStore.getState().loadHistory();
     } catch (e: any) {
       const msg = typeof e === 'string' ? e : e?.message || String(e);
       // 取消操作的错误不显示给用户

@@ -5,6 +5,7 @@ import type {
   Favorite,
   Collection,
   Environment,
+  Request,
 } from "@/types";
 
 interface DataState {
@@ -12,6 +13,7 @@ interface DataState {
   favorites: Favorite[];
   collections: Collection[];
   environments: Environment[];
+  savedRequests: Request[];
   activeEnvId: string | null;
 
   loadAll: () => Promise<void>;
@@ -19,6 +21,7 @@ interface DataState {
   loadFavorites: () => Promise<void>;
   loadCollections: () => Promise<void>;
   loadEnvironments: () => Promise<void>;
+  loadSavedRequests: (collectionId?: string) => Promise<void>;
 
   clearHistory: () => Promise<void>;
   removeFavorite: (id: string) => Promise<void>;
@@ -36,6 +39,7 @@ export const useDataStore = create<DataState>((set, get) => ({
   favorites: [],
   collections: [],
   environments: [],
+  savedRequests: [],
   activeEnvId: null,
 
   loadAll: async () => {
@@ -44,40 +48,39 @@ export const useDataStore = create<DataState>((set, get) => ({
       get().loadFavorites(),
       get().loadCollections(),
       get().loadEnvironments(),
+      get().loadSavedRequests(),
     ]);
   },
   loadHistory: async () => {
     try {
       const h = await tauri.listHistory(100);
       set({ history: h });
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (e) { console.error(e); }
   },
   loadFavorites: async () => {
     try {
       const f = await tauri.listFavorites();
       set({ favorites: f });
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (e) { console.error(e); }
   },
   loadCollections: async () => {
     try {
       const c = await tauri.listCollections();
       set({ collections: c });
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (e) { console.error(e); }
   },
   loadEnvironments: async () => {
     try {
       const e = await tauri.listEnvironments();
       const active = e.find((x) => x.active);
       set({ environments: e, activeEnvId: active?.id ?? null });
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (err) { console.error(err); }
+  },
+  loadSavedRequests: async (collectionId?: string) => {
+    try {
+      const r = await tauri.listSavedRequests(collectionId);
+      set({ savedRequests: r });
+    } catch (e) { console.error(e); }
   },
   clearHistory: async () => {
     await tauri.clearHistory();
@@ -95,8 +98,7 @@ export const useDataStore = create<DataState>((set, get) => ({
     await tauri.deleteEnvironment(id);
     set({
       environments: get().environments.filter((e) => e.id !== id),
-      activeEnvId:
-        get().activeEnvId === id ? null : get().activeEnvId,
+      activeEnvId: get().activeEnvId === id ? null : get().activeEnvId,
     });
   },
   setActiveEnv: (id) => set({ activeEnvId: id }),
@@ -109,6 +111,7 @@ export const useDataStore = create<DataState>((set, get) => ({
       : [...col.request_ids, requestId];
     await tauri.updateCollection(collectionId, { request_ids });
     await get().loadCollections();
+    await get().loadSavedRequests();
   },
 
   detachFromCollection: async (collectionId, requestId) => {
@@ -117,6 +120,7 @@ export const useDataStore = create<DataState>((set, get) => ({
     const request_ids = col.request_ids.filter((id) => id !== requestId);
     await tauri.updateCollection(collectionId, { request_ids });
     await get().loadCollections();
+    await get().loadSavedRequests();
   },
 
   updateCollection: async (id, patch) => {

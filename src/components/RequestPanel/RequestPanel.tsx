@@ -75,6 +75,7 @@ export function RequestPanel() {
 
   const handleSave = async (collectionId: string) => {
     if (!request.url.trim()) { toast.error('请求为空,无法保存'); return; }
+    if (!request.name.trim()) { toast.error('请先填写接口名称再保存'); setSaveDropdown(false); return; }
     try {
       const reqId = request.id || nanoid();
       const savedReq = { ...request, id: reqId };
