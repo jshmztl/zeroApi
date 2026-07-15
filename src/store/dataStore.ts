@@ -25,6 +25,10 @@ interface DataState {
   removeCollection: (id: string) => Promise<void>;
   removeEnvironment: (id: string) => Promise<void>;
   setActiveEnv: (id: string | null) => void;
+
+  attachToCollection: (collectionId: string, requestId: string) => Promise<void>;
+  detachFromCollection: (collectionId: string, requestId: string) => Promise<void>;
+  updateCollection: (id: string, patch: Partial<Pick<Collection, "name" | "description" | "request_ids">>) => Promise<void>;
 }
 
 export const useDataStore = create<DataState>((set, get) => ({
@@ -96,4 +100,27 @@ export const useDataStore = create<DataState>((set, get) => ({
     });
   },
   setActiveEnv: (id) => set({ activeEnvId: id }),
+
+  attachToCollection: async (collectionId, requestId) => {
+    const col = get().collections.find((c) => c.id === collectionId);
+    if (!col) return;
+    const request_ids = col.request_ids.includes(requestId)
+      ? col.request_ids
+      : [...col.request_ids, requestId];
+    await tauri.updateCollection(collectionId, { request_ids });
+    await get().loadCollections();
+  },
+
+  detachFromCollection: async (collectionId, requestId) => {
+    const col = get().collections.find((c) => c.id === collectionId);
+    if (!col) return;
+    const request_ids = col.request_ids.filter((id) => id !== requestId);
+    await tauri.updateCollection(collectionId, { request_ids });
+    await get().loadCollections();
+  },
+
+  updateCollection: async (id, patch) => {
+    await tauri.updateCollection(id, patch);
+    await get().loadCollections();
+  },
 }));

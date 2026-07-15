@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Star, History, Globe, FolderOpen, Upload, Plus, Trash2 } from 'lucide-react';
+import { Star, History, Globe, FolderOpen, Upload, Plus, Trash2, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useDataStore } from '@/store/dataStore';
 import { useRequestStore } from '@/store/requestStore';
@@ -259,9 +259,10 @@ function CollectionsList({
         <EmptyState tip="暂无集合" />
       ) : (
         items.map((c) => (
-          <div
+          <Link
             key={c.id}
-            className="group px-2 py-1.5 rounded hover:bg-white dark:hover:bg-gray-800 cursor-pointer"
+            to={`/collection/${c.id}`}
+            className="group block px-2 py-1.5 rounded hover:bg-white dark:hover:bg-gray-800 cursor-pointer"
           >
             <div className="flex items-center justify-between">
               <div className="min-w-0 flex-1">
@@ -272,14 +273,20 @@ function CollectionsList({
                   {c.request_ids.length} 个请求
                 </div>
               </div>
-              <button
-                onClick={() => onRemove(c.id)}
-                className="opacity-0 group-hover:opacity-100 text-gray-400 dark:text-gray-500 hover:text-red-500 p-0.5"
-              >
-                <Trash2 className="h-3 w-3" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onRemove(c.id);
+                  }}
+                  className="opacity-0 group-hover:opacity-100 text-gray-400 dark:text-gray-500 hover:text-red-500 p-0.5"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+                <ChevronRight className="h-3 w-3 text-gray-400" />
+              </div>
             </div>
-          </div>
+          </Link>
         ))
       )}
     </div>

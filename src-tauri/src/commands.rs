@@ -141,6 +141,37 @@ pub async fn save_collection(state: State<'_, AppState>, mut collection: Collect
 }
 
 #[tauri::command]
+pub async fn update_collection(
+    state: State<'_, AppState>,
+    id: String,
+    patch: CollectionPatch,
+) -> AppResult<()> {
+    state.db.update_collection(&id, &patch)
+}
+
+#[tauri::command]
+pub async fn save_saved_request(
+    state: State<'_, AppState>,
+    mut request: Request,
+    collection_id: Option<String>,
+) -> AppResult<String> {
+    if request.id.is_empty() {
+        request.id = Uuid::new_v4().to_string();
+    }
+    let cid = collection_id.as_deref();
+    state.db.upsert_saved_request(&request, cid)?;
+    Ok(request.id)
+}
+
+#[tauri::command]
+pub async fn list_saved_requests(
+    state: State<'_, AppState>,
+    collection_id: Option<String>,
+) -> AppResult<Vec<Request>> {
+    state.db.list_saved_requests(collection_id.as_deref())
+}
+
+#[tauri::command]
 pub async fn delete_collection(state: State<'_, AppState>, id: String) -> AppResult<()> {
     state.db.delete_collection(&id)
 }

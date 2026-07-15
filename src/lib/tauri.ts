@@ -35,8 +35,14 @@ export const tauri = {
   listCollections: () => invoke<Collection[]>("list_collections"),
   saveCollection: (collection: Collection) =>
     invoke<string>("save_collection", { collection }),
+  updateCollection: (id: string, patch: { name?: string; description?: string; request_ids?: string[] }) =>
+    invoke<void>("update_collection", { id, patch }),
   deleteCollection: (id: string) =>
     invoke<void>("delete_collection", { id }),
+  saveSavedRequest: (request: Request, collectionId?: string) =>
+    invoke<string>("save_saved_request", { request, collectionId }),
+  listSavedRequests: (collectionId?: string) =>
+    invoke<Request[]>("list_saved_requests", { collectionId }),
 
   listEnvironments: () => invoke<Environment[]>("list_environments"),
   saveEnvironment: (env: Environment) =>

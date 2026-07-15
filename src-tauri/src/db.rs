@@ -4,6 +4,7 @@ use std::sync::Mutex;
 
 use crate::models::*;
 use crate::AppResult;
+use chrono::Utc;
 use rusqlite::{params, Connection};
 use serde_json;
 
@@ -101,7 +102,7 @@ impl Database {
     }
 
     fn now() -> i64 {
-        chrono::Utc::now().timestamp_millis()
+        Utc::now().timestamp_millis()
     }
 
     // ---------- Settings ----------
@@ -223,6 +224,27 @@ impl Database {
         Ok(())
     }
 
+    pub fn update_collection(&self, id: &str, patch: &CollectionPatch) -> AppResult<()> {
+        let conn = self.conn.lock().unwrap();
+        if let Some(ref name) = patch.name {
+            conn.execute("UPDATE collections SET name = ?1, updated_at = ?2 WHERE id = ?3",
+                params![name, Self::now(), id])?;
+        }
+        if let Some(ref desc) = patch.description {
+            conn.execute("UPDATE collections SET description = ?1, updated_at = ?2 WHERE id = ?3",
+                params![desc, Self::now(), id])?;
+        }
+        if let Some(ref request_ids) = patch.request_ids {
+            let ids = serde_json::to_string(request_ids)?;
+            conn.execute("UPDATE collections SET request_ids = ?1, updated_at = ?2 WHERE id = ?3",
+                params![ids, Self::now(), id])?;
+        }
+        // Any other collection field update marks updated_at
+        conn.execute("UPDATE collections SET updated_at = ?1 WHERE id = ?2",
+            params![Self::now(), id])?;
+        Ok(())
+    }
+
     pub fn list_collections(&self) -> AppResult<Vec<Collection>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
@@ -246,6 +268,76 @@ impl Database {
             });
         }
         Ok(out)
+    }
+
+    // ---------- Saved Requests ----------
+
+    pub fn upsert_saved_request(&self, req: &Request, collection_id: Option<&str>) -> AppResult<()> {
+        let conn = self.conn.lock().unwrap();
+        let params = serde_json::to_string(&req.params)?;
+        let headers = serde_json::to_string(&req.headers)?;
+        let body = serde_json::to_string(&req.body)?;
+        let auth = serde_json::to_string(&req.auth)?;
+        let now = Self::now();
+        conn.execute(
+            "INSERT INTO requests (id, name, method, url, params, headers, body, auth, status, collection_id, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?11)
+             ON CONFLICT(id) DO UPDATE SET
+               name=excluded.name, method=excluded.method, url=excluded.url,
+               params=excluded.params, headers=excluded.headers, body=excluded.body, auth=excluded.auth,
+               status=excluded.status, collection_id=excluded.collection_id, updated_at=excluded.updated_at",
+            params![req.id, req.name, req.method, req.url, params, headers, body, auth,
+                    req.status.as_str(), collection_id, now],
+        )?;
+        Ok(())
+    }
+
+    pub fn list_saved_requests(&self, collection_id: Option<&str>) -> AppResult<Vec<Request>> {
+        let conn = self.conn.lock().unwrap();
+        let (sql, param) = if let Some(cid) = collection_id {
+            ("SELECT id, name, method, url, params, headers, body, auth, status, collection_id FROM requests WHERE collection_id = ?1 ORDER BY updated_at DESC".to_string(),
+             Some(cid.to_string()))
+        } else {
+            ("SELECT id, name, method, url, params, headers, body, auth, status, collection_id FROM requests ORDER BY updated_at DESC".to_string(),
+             None)
+        };
+        let mut stmt = conn.prepare(&sql)?;
+        let rows = if let Some(ref cid) = param {
+            stmt.query_map(params![cid], |row| {
+                Self::map_saved_request(row)
+            })?
+        } else {
+            stmt.query_map([], |row| {
+                Self::map_saved_request(row)
+            })?
+        };
+        let mut out = Vec::new();
+        for r in rows {
+            out.push(r?);
+        }
+        Ok(out)
+    }
+
+    fn map_saved_request(row: &rusqlite::Row) -> rusqlite::Result<Request> {
+        let params_str: String = row.get(4)?;
+        let headers_str: String = row.get(5)?;
+        let body_str: String = row.get(6)?;
+        let auth_str: String = row.get(7)?;
+        let status_str: String = row.get(8)?;
+        let collection_id: Option<String> = row.get(9)?;
+        let status: RequestStatus = serde_json::from_str(&format!("\"{}\"", status_str)).unwrap_or_default();
+        Ok(Request {
+            id: row.get(0)?,
+            name: row.get(1)?,
+            method: row.get(2)?,
+            url: row.get(3)?,
+            params: serde_json::from_str(&params_str).unwrap_or_default(),
+            headers: serde_json::from_str(&headers_str).unwrap_or_default(),
+            body: serde_json::from_str(&body_str).unwrap_or_default(),
+            auth: serde_json::from_str(&auth_str).unwrap_or_default(),
+            collection_id,
+            status,
+        })
     }
 
     // ---------- Environments ----------
@@ -291,6 +383,10 @@ impl Database {
     }
 
     // ---------- Maintenance ----------
+
+    fn now() -> i64 {
+        chrono::Utc::now().timestamp_millis()
+    }
 
     pub fn clear_all(&self) -> AppResult<()> {
         let conn = self.conn.lock().unwrap();

@@ -162,6 +162,17 @@ pub struct Collection {
     pub updated_at: i64,
 }
 
+/// 集合的部分更新
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct CollectionPatch {
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub description: Option<String>,
+    #[serde(default)]
+    pub request_ids: Option<Vec<String>>,
+}
+
 /// 收藏
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Favorite {
