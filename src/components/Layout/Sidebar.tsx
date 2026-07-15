@@ -20,6 +20,7 @@ import { CollectionDialog } from '@/components/Sidebar/CollectionDialog';
 import { nanoid } from '@/lib/nanoid';
 import type { Environment, Collection, Request, RequestStatus } from '@/types';
 import { REQUEST_STATUS_META } from '@/types';
+import { fullUrlDisplay } from '@/components/RequestPanel/RequestPanel';
 
 type Section = 'collections' | 'history' | 'favorites';
 
@@ -91,6 +92,9 @@ export function Sidebar() {
     }
   };
 
+  const activeEnv = environments.find((e) => e.id === activeEnvId);
+  const baseUrl = activeEnv?.base_url || '';
+
   const toggleExpand = (id: string) => {
     setExpandedCollections((prev) => {
       const next = new Set(prev);
@@ -143,6 +147,7 @@ export function Sidebar() {
             savedRequests={savedRequests}
             expanded={expandedCollections}
             onToggle={toggleExpand}
+            baseUrl={baseUrl}
             onNew={() => setCollectionDialog(true)}
             onRemove={async (id: string) => {
               await removeCollection(id);
@@ -153,6 +158,7 @@ export function Sidebar() {
         {section === 'history' && (
           <HistoryList
             items={history}
+            baseUrl={baseUrl}
             onClear={async () => {
               if (confirm('清空所有历史记录？')) {
                 await clearHistory();
@@ -168,6 +174,7 @@ export function Sidebar() {
         {section === 'favorites' && (
           <FavoritesList
             items={favorites}
+            baseUrl={baseUrl}
             onRemove={async (id: string) => {
               await removeFavorite(id);
               toast.success('已删除收藏');
@@ -282,6 +289,7 @@ function TreeCollectionsList({
   savedRequests,
   expanded,
   onToggle,
+  baseUrl,
   onNew,
   onRemove,
 }: {
@@ -289,6 +297,7 @@ function TreeCollectionsList({
   savedRequests: Request[];
   expanded: Set<string>;
   onToggle: (id: string) => void;
+  baseUrl: string;
   onNew: () => void;
   onRemove: (id: string) => void;
 }) {
@@ -349,7 +358,7 @@ function TreeCollectionsList({
               {isOpen && children.length > 0 && (
                 <div className="ml-4 border-l border-gray-200 dark:border-gray-700 pl-2 space-y-0.5 mt-0.5">
                   {children.map((req) => (
-                    <RequestMiniItem key={req.id} item={req} />
+                    <RequestMiniItem key={req.id} item={req} baseUrl={baseUrl} />
                   ))}
                 </div>
               )}
@@ -362,10 +371,11 @@ function TreeCollectionsList({
 }
 
 /* 集合内的二级请求项 */
-function RequestMiniItem({ item }: { item: Request }) {
+function RequestMiniItem({ item, baseUrl }: { item: Request; baseUrl: string }) {
   const navigate = useNavigate();
   const location = useLocation();
   const statusMeta = REQUEST_STATUS_META[item.status as RequestStatus];
+  const fullUrl = fullUrlDisplay(item.url, baseUrl);
   return (
     <div
       onClick={() => {
@@ -377,9 +387,14 @@ function RequestMiniItem({ item }: { item: Request }) {
       <span className="text-[9px] font-bold text-gray-400 dark:text-gray-500 flex-shrink-0 w-8 text-right">
         {item.method}
       </span>
-      <span className="text-xs text-gray-600 dark:text-gray-400 truncate flex-1">
-        {item.name || item.url}
-      </span>
+      <div className="flex-1 min-w-0">
+        <span className="text-xs text-gray-600 dark:text-gray-400 truncate block">{item.name}</span>
+        {fullUrl && (
+          <span className="text-[9px] text-gray-400 dark:text-gray-500 font-mono truncate block">
+            {fullUrl}
+          </span>
+        )}
+      </div>
       {statusMeta && (
         <span
           className={cn(
@@ -395,7 +410,15 @@ function RequestMiniItem({ item }: { item: Request }) {
 }
 
 /* ========== 收藏列表 ========== */
-function FavoritesList({ items, onRemove }: { items: any[]; onRemove: (id: string) => void }) {
+function FavoritesList({
+  items,
+  baseUrl,
+  onRemove,
+}: {
+  items: any[];
+  baseUrl: string;
+  onRemove: (id: string) => void;
+}) {
   if (items.length === 0) return <EmptyState tip="还没有收藏。点击 ⭐ 收藏一个请求。" />;
   return (
     <div className="space-y-1">
@@ -403,6 +426,7 @@ function FavoritesList({ items, onRemove }: { items: any[]; onRemove: (id: strin
         <RequestListItem
           key={f.id}
           item={f.request}
+          baseUrl={baseUrl}
           right={
             <button
               onClick={(e) => {
@@ -423,10 +447,12 @@ function FavoritesList({ items, onRemove }: { items: any[]; onRemove: (id: strin
 /* ========== 历史列表 ========== */
 function HistoryList({
   items,
+  baseUrl,
   onClear,
   onRemove,
 }: {
   items: any[];
+  baseUrl: string;
   onClear: () => void;
   onRemove: (id: string) => void;
 }) {
@@ -445,6 +471,7 @@ function HistoryList({
         <RequestListItem
           key={h.id}
           item={h.request}
+          baseUrl={baseUrl}
           subtitle={`${h.response.status} · ${h.response.time_ms}ms`}
           right={
             <div className="flex items-center gap-0.5">
@@ -471,16 +498,19 @@ function HistoryList({
 /* ========== 通用请求列表项 ========== */
 function RequestListItem({
   item,
+  baseUrl,
   subtitle,
   right,
 }: {
   item: any;
+  baseUrl: string;
   subtitle?: string;
   right?: React.ReactNode;
 }) {
   const navigate = useNavigate();
   const location = useLocation();
   const statusMeta = REQUEST_STATUS_META[item.status as RequestStatus];
+  const displayUrl = fullUrlDisplay(item.url, baseUrl);
   return (
     <div
       onClick={() => {
@@ -506,14 +536,21 @@ function RequestListItem({
               </span>
             )}
             <span className="text-xs text-gray-700 dark:text-gray-300 truncate">
-              {item.name || item.url || '(空)'}
+              {item.name || '(空)'}
             </span>
           </div>
-          {subtitle && (
-            <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 truncate">
-              {subtitle}
-            </div>
-          )}
+          <div className="flex items-center gap-2 mt-0.5">
+            {displayUrl && (
+              <span className="text-[10px] text-gray-400 dark:text-gray-500 font-mono truncate">
+                {displayUrl}
+              </span>
+            )}
+            {subtitle && (
+              <span className="text-[10px] text-gray-400 dark:text-gray-500 flex-shrink-0">
+                {subtitle}
+              </span>
+            )}
+          </div>
         </div>
         {right}
       </div>

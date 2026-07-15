@@ -5,6 +5,7 @@ import { useDataStore } from '@/store/dataStore';
 import { tauri } from '@/lib/tauri';
 import { toast } from '@/components/ui/Toast';
 import { REQUEST_STATUS_META } from '@/types';
+import { fullUrlDisplay } from '@/components/RequestPanel/RequestPanel';
 
 export function CollectionPage() {
   const { id } = useParams();
@@ -18,12 +19,17 @@ export function CollectionPage() {
     loadSavedRequests,
     detachFromCollection,
     attachToCollection,
+    environments,
+    activeEnvId,
   } = useDataStore();
   const [editing, setEditing] = React.useState(false);
   const [editName, setEditName] = React.useState('');
   const [editDesc, setEditDesc] = React.useState('');
   const [moveTarget, setMoveTarget] = React.useState<string | null>(null);
   const [moveReqId, setMoveReqId] = React.useState<string | null>(null);
+
+  const activeEnv = environments.find((e) => e.id === activeEnvId);
+  const baseUrl = activeEnv?.base_url || '';
 
   React.useEffect(() => {
     loadCollections();
@@ -178,6 +184,7 @@ export function CollectionPage() {
           const statusMeta = (
             REQUEST_STATUS_META as Record<string, { label: string; color: string }>
           )[req.status];
+          const displayUrl = fullUrlDisplay(req.url, baseUrl);
           return (
             <div
               key={req.id}
@@ -193,16 +200,14 @@ export function CollectionPage() {
                 }}
                 className="flex-1 min-w-0 cursor-pointer"
               >
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm text-gray-800 dark:text-gray-200">
-                    {req.name || req.url || '(未命名)'}
+                <span className="text-sm text-gray-800 dark:text-gray-200 block">
+                  {req.name || '(未命名)'}
+                </span>
+                {displayUrl && (
+                  <span className="text-[10px] text-gray-400 dark:text-gray-500 font-mono truncate block">
+                    {displayUrl}
                   </span>
-                  {req.name && (
-                    <span className="text-[10px] text-gray-400 dark:text-gray-500 font-mono truncate">
-                      {req.url}
-                    </span>
-                  )}
-                </div>
+                )}
               </div>
               {statusMeta && (
                 <span
