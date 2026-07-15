@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Request, ResponseSnapshot, KeyValue, Body, Auth } from '@/types';
+import type { Request, ResponseSnapshot, KeyValue, Body, Auth, RequestStatus } from '@/types';
 import { makeEmptyRequest } from '@/types';
 import { tauri } from '@/lib/tauri';
 import { nanoid } from '@/lib/nanoid';
@@ -17,6 +17,7 @@ interface RequestState {
   setAuth: (a: Auth) => void;
   setParams: (p: KeyValue[]) => void;
   setHeaders: (h: KeyValue[]) => void;
+  setStatus: (s: RequestStatus) => void;
   loadRequest: (r: Request) => void;
   resetRequest: () => void;
   setResponse: (r: ResponseSnapshot | null) => void;
@@ -41,8 +42,10 @@ export const useRequestStore = create<RequestState>((set, get) => ({
   setAuth: (a) => set((s) => ({ request: { ...s.request, auth: a } })),
   setParams: (p) => set((s) => ({ request: { ...s.request, params: p } })),
   setHeaders: (h) => set((s) => ({ request: { ...s.request, headers: h } })),
+  setStatus: (st) => set((s) => ({ request: { ...s.request, status: st } })),
   loadRequest: (r) => set({ request: r, response: null, error: null }),
-  resetRequest: () => set({ request: makeEmptyRequest(), response: null, error: null, clientId: null }),
+  resetRequest: () =>
+    set({ request: makeEmptyRequest(), response: null, error: null, clientId: null }),
   setResponse: (r) => set({ response: r, loading: false }),
   setLoading: (l) => set({ loading: l }),
   setError: (e) => set({ error: e, loading: false }),
@@ -57,9 +60,9 @@ export const useRequestStore = create<RequestState>((set, get) => ({
       const resp = await tauri.sendRequest(request, clientId);
       set({ response: resp, loading: false, clientId: null });
     } catch (e: any) {
-      const msg = typeof e === "string" ? e : e?.message || String(e);
+      const msg = typeof e === 'string' ? e : e?.message || String(e);
       // 取消操作的错误不显示给用户
-      if (msg.includes("请求已取消")) {
+      if (msg.includes('请求已取消')) {
         set({ loading: false, clientId: null });
         return;
       }

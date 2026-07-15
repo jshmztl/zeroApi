@@ -51,6 +51,30 @@ pub struct KeyValue {
     pub enabled: bool,
 }
 
+/// 请求状态枚举
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum RequestStatus {
+    #[default]
+    Draft,
+    InDevelopment,
+    Testing,
+    Deprecated,
+    Production,
+}
+
+impl RequestStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            RequestStatus::Draft => "draft",
+            RequestStatus::InDevelopment => "in_development",
+            RequestStatus::Testing => "testing",
+            RequestStatus::Deprecated => "deprecated",
+            RequestStatus::Production => "production",
+        }
+    }
+}
+
 /// 请求体
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -102,6 +126,8 @@ pub struct Request {
     pub auth: Auth,
     #[serde(default)]
     pub collection_id: Option<String>,
+    #[serde(default)]
+    pub status: RequestStatus,
 }
 
 /// 响应快照

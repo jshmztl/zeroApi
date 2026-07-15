@@ -78,6 +78,22 @@ impl Database {
             CREATE INDEX IF NOT EXISTS idx_collections_updated_at ON collections(updated_at DESC);
             "#,
         )?;
+        // 迁移：为老版本数据库添加 status 列
+        Self::ensure_column(&conn, "requests", "status",
+            "ALTER TABLE requests ADD COLUMN status TEXT NOT NULL DEFAULT 'draft'")?;
+        Ok(())
+    }
+
+    /// 检查列是否存在，不存在则执行 ALTER
+    fn ensure_column(conn: &Connection, table: &str, column: &str, ddl: &str) -> AppResult<()> {
+        let mut stmt = conn.prepare(&format!("PRAGMA table_info({})", table))?;
+        let exists = stmt.query_map([], |r| r.get::<_, String>(1))?
+            .filter_map(|r| r.ok())
+            .any(|c| c == column);
+        if !exists {
+            log::info!("执行数据库迁移: {}", ddl);
+            conn.execute(ddl, [])?;
+        }
         Ok(())
     }
 

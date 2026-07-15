@@ -9,7 +9,8 @@ import { toast } from '@/components/ui/Toast';
 import { EnvironmentDialog } from '@/components/Sidebar/EnvironmentDialog';
 import { CollectionDialog } from '@/components/Sidebar/CollectionDialog';
 import { nanoid } from '@/lib/nanoid';
-import type { Environment, Collection } from '@/types';
+import type { Environment, Collection, RequestStatus } from '@/types';
+import { REQUEST_STATUS_META } from '@/types';
 
 type Section = 'collections' | 'history' | 'favorites' | 'environments';
 
@@ -368,6 +369,7 @@ function RequestListItem({
   subtitle?: string;
   right?: React.ReactNode;
 }) {
+  const statusMeta = REQUEST_STATUS_META[item.status as RequestStatus];
   return (
     <div
       onClick={() => {
@@ -386,6 +388,16 @@ function RequestListItem({
             >
               {item.method}
             </span>
+            {statusMeta && (
+              <span
+                className={cn(
+                  'px-1 py-0 h-4 inline-flex items-center text-[9px] rounded',
+                  statusMeta.color,
+                )}
+              >
+                {statusMeta.label}
+              </span>
+            )}
             <span className="text-xs text-gray-700 dark:text-gray-300 truncate">
               {item.name || item.url || '(空)'}
             </span>

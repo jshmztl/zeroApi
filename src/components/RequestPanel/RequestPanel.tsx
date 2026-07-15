@@ -11,7 +11,8 @@ import { BodyEditor } from '@/components/RequestPanel/BodyEditor';
 import { AuthEditor } from '@/components/RequestPanel/AuthEditor';
 import { tauri } from '@/lib/tauri';
 import { toast } from '@/components/ui/Toast';
-import { HTTP_METHODS, type KeyValue } from '@/types';
+import { HTTP_METHODS, type KeyValue, REQUEST_STATUS_META } from '@/types';
+import type { RequestStatus } from '@/types';
 import { nanoid } from '@/lib/nanoid';
 import { buildFullUrl } from '@/lib/formatter';
 
@@ -43,6 +44,7 @@ export function RequestPanel() {
     setHeaders,
     setBody,
     setAuth,
+    setStatus,
     loading,
     response,
     error,
@@ -100,7 +102,7 @@ export function RequestPanel() {
 
   return (
     <div className="flex flex-col bg-white dark:bg-gray-900">
-      {/* 顶部：名称 + 方法 + URL + 发送/取消 */}
+      {/* 顶部：名称 + 状态 + 方法 + URL + 发送/取消 */}
       <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex items-center gap-2">
         <Input
           value={request.name}
@@ -108,6 +110,18 @@ export function RequestPanel() {
           placeholder="请求名（可空）"
           className="w-36 text-sm"
         />
+        <select
+          value={request.status}
+          onChange={(e) => setStatus(e.target.value as RequestStatus)}
+          className="h-8 px-1.5 text-xs border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500/30 w-[76px]"
+          title="接口状态"
+        >
+          {(Object.keys(REQUEST_STATUS_META) as RequestStatus[]).map((s) => (
+            <option key={s} value={s}>
+              {REQUEST_STATUS_META[s].label}
+            </option>
+          ))}
+        </select>
         <Select value={request.method} onChange={setMethod} options={METHOD_OPTIONS} />
         <Input
           value={request.url}

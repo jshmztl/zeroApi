@@ -32,6 +32,21 @@ export type Auth =
       location: "header" | "query";
     };
 
+export type RequestStatus =
+  | "draft"
+  | "in_development"
+  | "testing"
+  | "deprecated"
+  | "production";
+
+export const REQUEST_STATUS_META: Record<RequestStatus, { label: string; color: string }> = {
+  draft:          { label: "草稿",   color: "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300" },
+  in_development: { label: "开发中", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" },
+  testing:        { label: "测试中", color: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400" },
+  deprecated:     { label: "已废弃", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" },
+  production:     { label: "已上线", color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" },
+};
+
 export interface Request {
   id: string;
   name: string;
@@ -42,6 +57,7 @@ export interface Request {
   body: Body;
   auth: Auth;
   collection_id?: string | null;
+  status: RequestStatus;
 }
 
 export interface ResponseSnapshot {
@@ -129,5 +145,6 @@ export function makeEmptyRequest(): Request {
     body: { type: "none" },
     auth: { type: "none" },
     collection_id: null,
+    status: "draft",
   };
 }
