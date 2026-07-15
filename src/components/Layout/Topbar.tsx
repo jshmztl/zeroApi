@@ -33,7 +33,6 @@ export function Topbar() {
         await loadEnvironments();
       }
     } else {
-      // 取消激活
       if (activeEnv) {
         await tauri.saveEnvironment({ ...activeEnv, active: false });
         await loadEnvironments();
@@ -44,32 +43,32 @@ export function Topbar() {
   };
 
   return (
-    <header className="h-12 px-4 flex items-center gap-4 border-b border-gray-200 bg-white">
+    <header className="h-12 px-4 flex items-center gap-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
       <Link to="/" className="flex items-center gap-2 mr-2">
         <Logo size={26} />
-        <span className="font-semibold text-gray-900 tracking-tight">ZeroApi</span>
+        <span className="font-semibold text-gray-900 dark:text-gray-100 tracking-tight">ZeroApi</span>
       </Link>
 
       <div className="relative">
         <button
           onClick={() => setOpen(!open)}
-          className="flex items-center gap-1.5 h-8 px-3 rounded-md hover:bg-gray-100 text-sm"
+          className="flex items-center gap-1.5 h-8 px-3 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-sm"
         >
-          <Globe className="h-3.5 w-3.5 text-primary-600" />
-          <span className="font-medium text-gray-700">
+          <Globe className="h-3.5 w-3.5 text-primary-600 dark:text-primary-400" />
+          <span className="font-medium text-gray-700 dark:text-gray-300">
             {activeEnv ? activeEnv.name : "无环境"}
           </span>
-          <ChevronDown className="h-3.5 w-3.5 text-gray-400" />
+          <ChevronDown className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500" />
         </button>
         {open && (
           <>
             <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-            <div className="absolute z-40 top-full left-0 mt-1 w-64 bg-white border border-gray-200 rounded-lg shadow-lg p-1 animate-fade-in">
-              <div className="px-2 py-1.5 text-xs text-gray-500 font-medium">切换环境</div>
+            <div className="absolute z-40 top-full left-0 mt-1 w-64 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg shadow-lg p-1 animate-fade-in">
+              <div className="px-2 py-1.5 text-xs text-gray-500 dark:text-gray-500 font-medium">切换环境</div>
               <button
                 onClick={() => handleSetActive(null)}
-                className={`w-full text-left px-2 py-1.5 rounded text-sm hover:bg-gray-100 ${
-                  !activeEnvId ? "text-primary-700 bg-primary-50" : "text-gray-700"
+                className={`w-full text-left px-2 py-1.5 rounded text-sm hover:bg-gray-100 dark:hover:bg-gray-800 ${
+                  !activeEnvId ? "text-primary-700 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/20" : "text-gray-700 dark:text-gray-300"
                 }`}
               >
                 无环境
@@ -78,18 +77,18 @@ export function Topbar() {
                 <button
                   key={e.id}
                   onClick={() => handleSetActive(e.id)}
-                  className={`w-full text-left px-2 py-1.5 rounded text-sm hover:bg-gray-100 ${
-                    activeEnvId === e.id ? "text-primary-700 bg-primary-50" : "text-gray-700"
+                  className={`w-full text-left px-2 py-1.5 rounded text-sm hover:bg-gray-100 dark:hover:bg-gray-800 ${
+                    activeEnvId === e.id ? "text-primary-700 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/20" : "text-gray-700 dark:text-gray-300"
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <span>{e.name}</span>
-                    <span className="text-[10px] text-gray-400">{e.vars.length} 变量</span>
+                    <span className="text-[10px] text-gray-400 dark:text-gray-500">{e.vars.length} 变量</span>
                   </div>
                 </button>
               ))}
               {environments.length === 0 && (
-                <div className="px-2 py-3 text-xs text-gray-400 text-center">
+                <div className="px-2 py-3 text-xs text-gray-400 dark:text-gray-500 text-center">
                   还没有环境,去侧边栏创建一个
                 </div>
               )}
@@ -109,7 +108,7 @@ export function Topbar() {
 
       <button
         onClick={() => nav("/settings")}
-        className="w-8 h-8 inline-flex items-center justify-center rounded-md hover:bg-gray-100 text-gray-600"
+        className="w-8 h-8 inline-flex items-center justify-center rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
         title="设置"
       >
         <Settings className="h-4 w-4" />

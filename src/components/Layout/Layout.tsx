@@ -8,11 +8,11 @@ import { Sidebar } from "./Sidebar";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="h-screen w-screen flex flex-col bg-gray-50">
+    <div className="h-screen w-screen flex flex-col bg-gray-50 dark:bg-gray-950">
       <Topbar />
       <div className="flex-1 flex overflow-hidden">
         <Sidebar />
-        <main className="flex-1 overflow-auto bg-white">{children}</main>
+        <main className="flex-1 overflow-auto bg-white dark:bg-gray-900">{children}</main>
       </div>
     </div>
   );

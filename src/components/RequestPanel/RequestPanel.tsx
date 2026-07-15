@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Send, Star, Loader2 } from "lucide-react";
+import { Send, Star } from "lucide-react";
 import { useRequestStore } from "@/store/requestStore";
 import { useDataStore } from "@/store/dataStore";
 import { Button } from "@/components/ui/Button";
@@ -14,7 +14,6 @@ import { toast } from "@/components/ui/Toast";
 import { HTTP_METHODS, type KeyValue } from "@/types";
 import { nanoid } from "@/lib/nanoid";
 import { buildFullUrl } from "@/lib/formatter";
-import { methodColor } from "@/lib/utils";
 
 const METHOD_OPTIONS = HTTP_METHODS.map((m) => ({
   value: m,
@@ -33,7 +32,7 @@ type TabKey = "params" | "headers" | "body" | "auth";
 export function RequestPanel() {
   const {
     request, setMethod, setUrl, setParams, setHeaders, setBody, setAuth,
-    loading, setLoading, setResponse, setError, response,
+    loading, setLoading, setResponse, setError, clearError, response,
   } = useRequestStore();
   const { loadHistory, loadFavorites } = useDataStore();
   const [tab, setTab] = React.useState<TabKey>("params");
@@ -47,7 +46,7 @@ export function RequestPanel() {
       return;
     }
     setLoading(true);
-    setError(null);
+    clearError();
     try {
       const resp = await tauri.sendRequest(request);
       setResponse(resp);
@@ -55,7 +54,7 @@ export function RequestPanel() {
     } catch (e: any) {
       const msg = typeof e === "string" ? e : e?.message || String(e);
       setError(msg);
-      toast.error(msg);
+      toast.error(msg.length > 200 ? msg.slice(0, 200) + "..." : msg);
     } finally {
       setLoading(false);
     }
@@ -78,9 +77,9 @@ export function RequestPanel() {
   const fullUrl = buildFullUrl(request.url, request.params);
 
   return (
-    <div className="flex flex-col bg-white">
+    <div className="flex flex-col bg-white dark:bg-gray-900">
       {/* 顶部：方法 + URL + 发送 */}
-      <div className="px-4 py-3 border-b border-gray-200 flex items-center gap-2">
+      <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex items-center gap-2">
         <Select
           value={request.method}
           onChange={setMethod}
@@ -159,8 +158,8 @@ export function RequestPanel() {
 
       {/* 状态栏：最后响应 */}
       {response && (
-        <div className="px-4 py-1.5 border-t border-gray-200 bg-gray-50 text-[11px] text-gray-500 flex items-center gap-3">
-          <span className={`font-mono font-semibold ${response.status >= 200 && response.status < 300 ? "text-emerald-600" : response.status >= 400 ? "text-red-600" : "text-gray-600"}`}>
+        <div className="px-4 py-1.5 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-3">
+          <span className={`font-mono font-semibold ${response.status >= 200 && response.status < 300 ? "text-emerald-600 dark:text-emerald-400" : response.status >= 400 ? "text-red-600 dark:text-red-400" : "text-gray-600 dark:text-gray-400"}`}>
             {response.status} {response.status_text}
           </span>
           <span>·</span>

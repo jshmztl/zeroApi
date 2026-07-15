@@ -1,6 +1,6 @@
-import { create } from "zustand";
-import type { Request, ResponseSnapshot, KeyValue, Body, Auth } from "@/types";
-import { makeEmptyRequest } from "@/types";
+import { create } from 'zustand';
+import type { Request, ResponseSnapshot, KeyValue, Body, Auth } from '@/types';
+import { makeEmptyRequest } from '@/types';
 
 interface RequestState {
   request: Request;
@@ -19,6 +19,7 @@ interface RequestState {
   setResponse: (r: ResponseSnapshot | null) => void;
   setLoading: (l: boolean) => void;
   setError: (e: string | null) => void;
+  clearError: () => void;
 }
 
 export const useRequestStore = create<RequestState>((set) => ({
@@ -39,4 +40,5 @@ export const useRequestStore = create<RequestState>((set) => ({
   setResponse: (r) => set({ response: r, loading: false }),
   setLoading: (l) => set({ loading: l }),
   setError: (e) => set({ error: e, loading: false }),
+  clearError: () => set({ error: null }),
 }));

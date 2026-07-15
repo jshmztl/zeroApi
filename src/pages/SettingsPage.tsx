@@ -1,5 +1,6 @@
 import * as React from "react";
-import { Save, Trash2, RefreshCw, Download, Upload, Github, Sun, Moon, Monitor } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { ArrowLeft, Save, Trash2, RefreshCw, Download, Upload, Github, Sun, Moon, Monitor } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useSettingsStore } from "@/store/settingsStore";
@@ -12,6 +13,7 @@ import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 
 export function SettingsPage() {
+  const nav = useNavigate();
   const { settings, update } = useSettingsStore();
   const { loadAll } = useDataStore();
   const [version, setVersion] = React.useState("");
@@ -70,11 +72,20 @@ export function SettingsPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-8 space-y-8">
-      <div className="flex items-center gap-3 pb-4 border-b border-gray-200">
+      {/* 返回按钮 */}
+      <button
+        onClick={() => nav("/")}
+        className="inline-flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        返回主页
+      </button>
+
+      <div className="flex items-center gap-3 pb-4 border-b border-gray-200 dark:border-gray-800">
         <Logo size={36} />
         <div>
-          <h1 className="text-xl font-semibold text-gray-900">设置</h1>
-          <p className="text-xs text-gray-500">ZeroApi · v{version} · 本地构建</p>
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">设置</h1>
+          <p className="text-xs text-gray-500 dark:text-gray-500">ZeroApi · v{version} · 本地构建</p>
         </div>
       </div>
 
@@ -94,8 +105,8 @@ export function SettingsPage() {
                   onClick={() => update({ theme: o.v as any })}
                   className={`h-8 px-2.5 text-xs rounded-md inline-flex items-center gap-1.5 transition-colors ${
                     settings.theme === o.v
-                      ? "bg-primary-50 text-primary-700 border border-primary-200"
-                      : "text-gray-600 hover:bg-gray-100 border border-transparent"
+                      ? "bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 border border-primary-200 dark:border-primary-800"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 border border-transparent"
                   }`}
                 >
                   <Icon className="h-3.5 w-3.5" />
@@ -183,13 +194,13 @@ export function SettingsPage() {
             <RefreshCw className="h-3.5 w-3.5" />
             检查更新
           </Button>
-          <span className="text-xs text-gray-500">当前 v{version}</span>
+          <span className="text-xs text-gray-500 dark:text-gray-500">当前 v{version}</span>
         </div>
       </Section>
 
       {/* 关于 */}
       <Section title="关于" desc="">
-        <div className="text-xs text-gray-500 space-y-1">
+        <div className="text-xs text-gray-500 dark:text-gray-500 space-y-1">
           <div>ZeroApi 是一款开源、零登录、零云端、零 CORS 的 API 调试工具。</div>
           <div className="flex items-center gap-1">
             <Github className="h-3 w-3" />
@@ -197,12 +208,12 @@ export function SettingsPage() {
               href="https://github.com/jshmztl/zeroApi"
               target="_blank"
               rel="noreferrer"
-              className="text-primary-600 hover:underline"
+              className="text-primary-600 dark:text-primary-400 hover:underline"
             >
               github.com/jshmztl/zeroApi
             </a>
           </div>
-          <div className="text-gray-400">© 2026 ZeroApi · Made with 💚</div>
+          <div className="text-gray-400 dark:text-gray-600">© 2026 ZeroApi · Made with 💚</div>
         </div>
       </Section>
     </div>
@@ -213,10 +224,10 @@ function Section({ title, desc, children }: { title: string; desc?: string; chil
   return (
     <section className="space-y-3">
       <div>
-        <h2 className="text-sm font-semibold text-gray-900">{title}</h2>
-        {desc && <p className="text-xs text-gray-500 mt-0.5">{desc}</p>}
+        <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
+        {desc && <p className="text-xs text-gray-500 dark:text-gray-500 mt-0.5">{desc}</p>}
       </div>
-      <div className="bg-white border border-gray-100 rounded-xl p-4 space-y-3">{children}</div>
+      <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl p-4 space-y-3">{children}</div>
     </section>
   );
 }
@@ -225,8 +236,8 @@ function Row({ label, desc, children }: { label: string; desc?: string; children
   return (
     <div className="flex items-center justify-between gap-4 py-1.5">
       <div className="min-w-0">
-        <div className="text-sm text-gray-700">{label}</div>
-        {desc && <div className="text-[11px] text-gray-400 mt-0.5">{desc}</div>}
+        <div className="text-sm text-gray-700 dark:text-gray-300">{label}</div>
+        {desc && <div className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">{desc}</div>}
       </div>
       <div className="flex-shrink-0">{children}</div>
     </div>
@@ -237,11 +248,11 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
   return (
     <button
       onClick={() => onChange(!checked)}
-      className={`relative w-9 h-5 rounded-full transition-colors ${checked ? "bg-primary-500" : "bg-gray-300"}`}
+      className={`relative w-9 h-5 rounded-full transition-colors overflow-hidden ${checked ? "bg-primary-500" : "bg-gray-300 dark:bg-gray-600"}`}
     >
       <span
-        className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-          checked ? "translate-x-[18px]" : "translate-x-0.5"
+        className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+          checked ? "translate-x-4" : "translate-x-0"
         }`}
       />
     </button>

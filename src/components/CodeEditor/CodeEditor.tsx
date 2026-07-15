@@ -16,7 +16,10 @@ export function CodeEditor({
     (settings.theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
 
   return (
-    <div className="border border-gray-200 rounded-md overflow-hidden bg-white">
+    <div className={
+      "border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden bg-white dark:bg-gray-900"
+      + (height === "100%" ? " h-full" : "")
+    }>
       <Editor
         value={value}
         onChange={(v) => onChange?.(v ?? "")}

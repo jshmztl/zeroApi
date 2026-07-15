@@ -42,6 +42,9 @@ env_logger = "0.11"
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
 
+[profile.dev]
+debug = 1
+
 [profile.release]
 panic = "abort"
 codegen-units = 1

@@ -45,8 +45,8 @@ export function BodyEditor({ value, onChange }: { value: Body; onChange: (b: Bod
             className={cn(
               "px-2.5 h-7 text-xs rounded-md transition-colors",
               mode === o.value
-                ? "bg-primary-50 text-primary-700 border border-primary-200"
-                : "text-gray-600 hover:bg-gray-100 border border-transparent"
+                ? "bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 border border-primary-200 dark:border-primary-800"
+                : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 border border-transparent"
             )}
           >
             {o.label}
@@ -55,7 +55,7 @@ export function BodyEditor({ value, onChange }: { value: Body; onChange: (b: Bod
       </div>
 
       {value.type === "none" && (
-        <div className="text-center py-6 text-xs text-gray-400">
+        <div className="text-center py-6 text-xs text-gray-400 dark:text-gray-500">
           请求体为空
         </div>
       )}
@@ -82,11 +82,11 @@ export function BodyEditor({ value, onChange }: { value: Body; onChange: (b: Bod
       {value.type === "raw" && (
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <label className="text-[10px] text-gray-500">Content-Type:</label>
+            <label className="text-[10px] text-gray-500 dark:text-gray-400">Content-Type:</label>
             <select
               value={value.content_type}
               onChange={(e) => onChange({ ...value, content_type: e.target.value })}
-              className="h-7 px-2 text-xs border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+              className="h-7 px-2 text-xs border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500/30"
             >
               {RAW_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>{t.label}</option>
@@ -99,7 +99,7 @@ export function BodyEditor({ value, onChange }: { value: Body; onChange: (b: Bod
                   onChange({ ...value, content: pretty });
                 } catch {}
               }}
-              className="text-[10px] text-primary-600 hover:text-primary-700"
+              className="text-[10px] text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
             >
               美化 JSON
             </button>

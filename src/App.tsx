@@ -7,6 +7,7 @@ import { ImportPage } from "@/pages/ImportPage";
 import { CollectionPage } from "@/pages/CollectionPage";
 import { useSettingsStore } from "@/store/settingsStore";
 import { ToastProvider } from "@/components/ui/Toast";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 export default function App() {
   const { settings, load } = useSettingsStore();
@@ -28,18 +29,20 @@ export default function App() {
   }, [settings.theme]);
 
   return (
-    <ToastProvider>
-      <HashRouter>
-        <Layout>
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/import" element={<ImportPage />} />
-            <Route path="/collection/:id" element={<CollectionPage />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Layout>
-      </HashRouter>
-    </ToastProvider>
+    <ErrorBoundary>
+      <ToastProvider>
+        <HashRouter>
+          <Layout>
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/import" element={<ImportPage />} />
+              <Route path="/collection/:id" element={<CollectionPage />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Layout>
+        </HashRouter>
+      </ToastProvider>
+    </ErrorBoundary>
   );
 }
