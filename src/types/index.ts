@@ -1,13 +1,6 @@
 // 全局数据模型(与 Rust 端 models.rs 对齐)
 
-export type HttpMethod =
-  | "GET"
-  | "POST"
-  | "PUT"
-  | "PATCH"
-  | "DELETE"
-  | "HEAD"
-  | "OPTIONS";
+export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS';
 
 export interface KeyValue {
   key: string;
@@ -16,35 +9,42 @@ export interface KeyValue {
 }
 
 export type Body =
-  | { type: "none" }
-  | { type: "form_data"; items: KeyValue[] }
-  | { type: "url_encoded"; items: KeyValue[] }
-  | { type: "raw"; content_type: string; content: string };
+  | { type: 'none' }
+  | { type: 'form_data'; items: KeyValue[] }
+  | { type: 'url_encoded'; items: KeyValue[] }
+  | { type: 'raw'; content_type: string; content: string };
 
 export type Auth =
-  | { type: "none" }
-  | { type: "bearer"; token: string }
-  | { type: "basic"; username: string; password: string }
+  | { type: 'none' }
+  | { type: 'bearer'; token: string }
+  | { type: 'basic'; username: string; password: string }
   | {
-      type: "api_key";
+      type: 'api_key';
       key: string;
       value: string;
-      location: "header" | "query";
+      location: 'header' | 'query';
     };
 
-export type RequestStatus =
-  | "draft"
-  | "in_development"
-  | "testing"
-  | "deprecated"
-  | "production";
+export type RequestStatus = 'draft' | 'in_development' | 'testing' | 'deprecated' | 'production';
 
 export const REQUEST_STATUS_META: Record<RequestStatus, { label: string; color: string }> = {
-  draft:          { label: "草稿",   color: "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300" },
-  in_development: { label: "开发中", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" },
-  testing:        { label: "测试中", color: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400" },
-  deprecated:     { label: "已废弃", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" },
-  production:     { label: "已上线", color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" },
+  draft: { label: '草稿', color: 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300' },
+  in_development: {
+    label: '开发中',
+    color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  },
+  testing: {
+    label: '测试中',
+    color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
+  },
+  deprecated: {
+    label: '已废弃',
+    color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+  },
+  production: {
+    label: '已上线',
+    color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+  },
 };
 
 export interface Request {
@@ -95,6 +95,7 @@ export interface Collection {
 export interface Environment {
   id: string;
   name: string;
+  base_url: string;
   vars: KeyValue[];
   active: boolean;
 }
@@ -102,7 +103,7 @@ export interface Environment {
 export interface Settings {
   timeout_ms: number;
   proxy_url: string;
-  theme: "light" | "dark" | "system";
+  theme: 'light' | 'dark' | 'system';
   auto_save_history: boolean;
   history_limit: number;
   verify_ssl: boolean;
@@ -125,26 +126,26 @@ export interface ImportPayload {
 }
 
 export const HTTP_METHODS: HttpMethod[] = [
-  "GET",
-  "POST",
-  "PUT",
-  "PATCH",
-  "DELETE",
-  "HEAD",
-  "OPTIONS",
+  'GET',
+  'POST',
+  'PUT',
+  'PATCH',
+  'DELETE',
+  'HEAD',
+  'OPTIONS',
 ];
 
 export function makeEmptyRequest(): Request {
   return {
-    id: "",
-    name: "",
-    method: "GET",
-    url: "",
+    id: '',
+    name: '',
+    method: 'GET',
+    url: '',
     params: [],
     headers: [],
-    body: { type: "none" },
-    auth: { type: "none" },
+    body: { type: 'none' },
+    auth: { type: 'none' },
     collection_id: null,
-    status: "draft",
+    status: 'draft',
   };
 }

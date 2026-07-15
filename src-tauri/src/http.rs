@@ -27,6 +27,10 @@ pub fn collect_env_vars(env: Option<&Environment>) -> HashMap<String, String> {
                 m.insert(kv.key.clone(), kv.value.clone());
             }
         }
+        // 如果环境配置了 base_url，也作为变量注入
+        if !e.base_url.is_empty() {
+            m.insert("baseUrl".to_string(), e.base_url.clone());
+        }
     }
     m
 }
@@ -40,6 +44,14 @@ pub fn build_request(
 ) -> AppResult<reqwest::RequestBuilder> {
     // 1. URL: 合并 query 参数 & 替换变量
     let mut url = substitute_vars(&req.url, env_vars);
+    // 如果 URL 以 / 开头且有 baseUrl 变量，自动拼接接口前缀
+    if url.starts_with('/') {
+        if let Some(base) = env_vars.get("baseUrl").or_else(|| env_vars.get("base_url")) {
+            if !base.is_empty() {
+                url = format!("{}{}", base.trim_end_matches('/'), url);
+            }
+        }
+    }
     let enabled_params: Vec<&KeyValue> = req.params.iter().filter(|p| p.enabled && !p.key.is_empty()).collect();
     if !enabled_params.is_empty() {
         let mut u = url::Url::parse(&url)?;

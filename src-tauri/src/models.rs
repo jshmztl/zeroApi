@@ -175,6 +175,8 @@ pub struct Favorite {
 pub struct Environment {
     pub id: String,
     pub name: String,
+    #[serde(default)]
+    pub base_url: String,
     pub vars: Vec<KeyValue>,
     #[serde(default)]
     pub active: bool,

@@ -81,6 +81,9 @@ impl Database {
         // 迁移：为老版本数据库添加 status 列
         Self::ensure_column(&conn, "requests", "status",
             "ALTER TABLE requests ADD COLUMN status TEXT NOT NULL DEFAULT 'draft'")?;
+        // 迁移：为老版本数据库添加 base_url 列
+        Self::ensure_column(&conn, "environments", "base_url",
+            "ALTER TABLE environments ADD COLUMN base_url TEXT NOT NULL DEFAULT ''")?;
         Ok(())
     }
 
@@ -255,8 +258,8 @@ impl Database {
             conn.execute("UPDATE environments SET active = 0", [])?;
         }
         conn.execute(
-            "INSERT OR REPLACE INTO environments (id, name, vars, active) VALUES (?1, ?2, ?3, ?4)",
-            params![env.id, env.name, vars, env.active as i32],
+            "INSERT OR REPLACE INTO environments (id, name, base_url, vars, active) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![env.id, env.name, env.base_url, vars, env.active as i32],
         )?;
         Ok(())
     }
@@ -269,19 +272,20 @@ impl Database {
 
     pub fn list_environments(&self) -> AppResult<Vec<Environment>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT id, name, vars, active FROM environments ORDER BY name")?;
+        let mut stmt = conn.prepare("SELECT id, name, base_url, vars, active FROM environments ORDER BY name")?;
         let rows = stmt.query_map([], |row| {
             let id: String = row.get(0)?;
             let name: String = row.get(1)?;
-            let vars: String = row.get(2)?;
-            let active: i32 = row.get(3)?;
-            Ok((id, name, vars, active != 0))
+            let base_url: String = row.get(2)?;
+            let vars: String = row.get(3)?;
+            let active: i32 = row.get(4)?;
+            Ok((id, name, base_url, vars, active != 0))
         })?;
         let mut out = Vec::new();
         for r in rows {
-            let (id, name, vars, active) = r?;
+            let (id, name, base_url, vars, active) = r?;
             let v: Vec<KeyValue> = serde_json::from_str(&vars).unwrap_or_default();
-            out.push(Environment { id, name, vars: v, active });
+            out.push(Environment { id, name, base_url, vars: v, active });
         }
         Ok(out)
     }
