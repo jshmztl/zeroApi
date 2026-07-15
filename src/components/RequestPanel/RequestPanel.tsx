@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Send, Star, X, Save } from 'lucide-react';
+import { Send, Star, X } from 'lucide-react';
 import { useRequestStore } from '@/store/requestStore';
 import { useDataStore } from '@/store/dataStore';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -12,8 +12,9 @@ import { BodyEditor } from '@/components/RequestPanel/BodyEditor';
 import { AuthEditor } from '@/components/RequestPanel/AuthEditor';
 import { tauri } from '@/lib/tauri';
 import { toast } from '@/components/ui/Toast';
+import { CollectionDialog } from '@/components/Sidebar/CollectionDialog';
 import { HTTP_METHODS, REQUEST_STATUS_META } from '@/types';
-import type { RequestStatus } from '@/types';
+import type { RequestStatus, Collection } from '@/types';
 import { nanoid } from '@/lib/nanoid';
 import { buildFullUrl } from '@/lib/formatter';
 import { cn } from '@/lib/utils';
@@ -22,35 +23,63 @@ const METHOD_OPTIONS = HTTP_METHODS.map((m) => ({
   value: m,
   label: m,
   color:
-    m === 'GET' ? '#10B981' :
-    m === 'POST' ? '#3B82F6' :
-    m === 'PUT' ? '#F59E0B' :
-    m === 'PATCH' ? '#8B5CF6' :
-    m === 'DELETE' ? '#EF4444' :
-    '#6B7280',
+    m === 'GET'
+      ? '#10B981'
+      : m === 'POST'
+        ? '#3B82F6'
+        : m === 'PUT'
+          ? '#F59E0B'
+          : m === 'PATCH'
+            ? '#8B5CF6'
+            : m === 'DELETE'
+              ? '#EF4444'
+              : '#6B7280',
 }));
 
 type TabKey = 'params' | 'headers' | 'body' | 'auth';
 
 export function RequestPanel() {
   const {
-    request, setMethod, setUrl, setParams, setHeaders, setBody, setAuth, setStatus,
-    loading, response, error,
-    send, cancel,
+    request,
+    setMethod,
+    setUrl,
+    setParams,
+    setHeaders,
+    setBody,
+    setAuth,
+    setStatus,
+    loading,
+    response,
+    error,
+    send,
+    cancel,
   } = useRequestStore();
-  const { loadHistory, loadFavorites, loadCollections, collections, attachToCollection } = useDataStore();
+  const {
+    loadHistory,
+    loadFavorites,
+    loadCollections,
+    loadSavedRequests,
+    collections,
+    attachToCollection,
+  } = useDataStore();
   const navigate = useNavigate();
   const location = useLocation();
   const [tab, setTab] = React.useState<TabKey>('params');
   const [saveDropdown, setSaveDropdown] = React.useState(false);
+  const [newCollectionDialog, setNewCollectionDialog] = React.useState(false);
 
-  React.useEffect(() => { loadCollections(); }, [loadCollections]);
+  React.useEffect(() => {
+    loadCollections();
+  }, [loadCollections]);
 
   const enabledParamsCount = request.params.filter((p) => p.enabled && p.key).length;
   const enabledHeadersCount = request.headers.filter((h) => h.enabled && h.key).length;
 
   const handleSend = async () => {
-    if (!request.url.trim()) { toast.error('请输入 URL'); return; }
+    if (!request.url.trim()) {
+      toast.error('请输入 URL');
+      return;
+    }
     try {
       await send();
       await loadHistory();
@@ -62,29 +91,65 @@ export function RequestPanel() {
     }
   };
 
-  const handleCancel = async () => { await cancel(); };
+  const handleCancel = async () => {
+    await cancel();
+  };
 
   const favorite = async () => {
-    if (!request.url.trim()) { toast.error('请求为空,无法收藏'); return; }
+    if (!request.url.trim()) {
+      toast.error('请求为空,无法收藏');
+      return;
+    }
     try {
       await tauri.addFavorite({ ...request, id: request.id || nanoid() });
       await loadFavorites();
       toast.success('已加入收藏');
-    } catch (e: any) { toast.error('收藏失败: ' + String(e)); }
+    } catch (e: any) {
+      toast.error('收藏失败: ' + String(e));
+    }
   };
 
   const handleSave = async (collectionId: string) => {
-    if (!request.url.trim()) { toast.error('请求为空,无法保存'); return; }
-    if (!request.name.trim()) { toast.error('请先填写接口名称再保存'); setSaveDropdown(false); return; }
+    if (!request.url.trim()) {
+      toast.error('请求为空,无法保存');
+      return;
+    }
+    if (!request.name.trim()) {
+      toast.error('请先填写接口名称再保存');
+      setSaveDropdown(false);
+      return;
+    }
     try {
       const reqId = request.id || nanoid();
       const savedReq = { ...request, id: reqId };
       await tauri.saveSavedRequest(savedReq, collectionId);
       await attachToCollection(collectionId, reqId);
       await loadFavorites();
+      await loadSavedRequests();
       toast.success('已保存到集合');
-    } catch (e: any) { toast.error('保存失败: ' + String(e)); }
+    } catch (e: any) {
+      toast.error('保存失败: ' + String(e));
+    }
     setSaveDropdown(false);
+  };
+
+  const handleNewCollectionFromSave = async (name: string, description: string) => {
+    try {
+      const c: Collection = {
+        id: nanoid(),
+        name,
+        description,
+        request_ids: [],
+        created_at: Date.now(),
+        updated_at: Date.now(),
+      };
+      await tauri.saveCollection(c);
+      await loadCollections();
+      toast.success('集合已创建，请再次保存');
+      setNewCollectionDialog(false);
+    } catch (e: any) {
+      toast.error('创建失败: ' + String(e));
+    }
   };
 
   const fullUrl = buildFullUrl(request.url, request.params);
@@ -106,7 +171,9 @@ export function RequestPanel() {
           title="接口状态"
         >
           {(Object.keys(REQUEST_STATUS_META) as RequestStatus[]).map((s) => (
-            <option key={s} value={s}>{REQUEST_STATUS_META[s].label}</option>
+            <option key={s} value={s}>
+              {REQUEST_STATUS_META[s].label}
+            </option>
           ))}
         </select>
         <Select value={request.method} onChange={setMethod} options={METHOD_OPTIONS} />
@@ -136,15 +203,18 @@ export function RequestPanel() {
         <div className="relative">
           <Button
             variant="outline"
-            onClick={(e) => { e.stopPropagation(); setSaveDropdown(!saveDropdown); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setSaveDropdown(!saveDropdown);
+            }}
             title="保存到集合"
           >
-            <Save className="h-3.5 w-3.5" />
+            保存
           </Button>
           {saveDropdown && (
             <div className="absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-50 min-w-[160px] max-h-48 overflow-auto">
               {collections.length === 0 ? (
-                <div className="px-3 py-2 text-xs text-gray-400">暂无集合，请先在侧边栏创建</div>
+                <div className="px-3 py-2 text-xs text-gray-400">暂无集合，请先创建</div>
               ) : (
                 collections.map((c) => (
                   <button
@@ -159,7 +229,10 @@ export function RequestPanel() {
               )}
               <div className="border-t border-gray-100 dark:border-gray-700">
                 <button
-                  onClick={() => { setSaveDropdown(false); navigate('/'); }}
+                  onClick={() => {
+                    setSaveDropdown(false);
+                    setNewCollectionDialog(true);
+                  }}
                   className="w-full text-left px-3 py-1.5 text-xs text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20"
                 >
                   + 新建集合
@@ -186,10 +259,20 @@ export function RequestPanel() {
       {/* Tab 内容 */}
       <div className="px-4 py-3 max-h-[42vh] overflow-auto">
         {tab === 'params' && (
-          <KeyValueEditor value={request.params} onChange={setParams} keyPlaceholder="参数名" valuePlaceholder="参数值" bulkPaste />
+          <KeyValueEditor
+            value={request.params}
+            onChange={setParams}
+            keyPlaceholder="参数名"
+            valuePlaceholder="参数值"
+            bulkPaste
+          />
         )}
         {tab === 'headers' && (
-          <KeyValueEditor value={request.headers} onChange={setHeaders} keyPlaceholder="Header" valuePlaceholder="Value"
+          <KeyValueEditor
+            value={request.headers}
+            onChange={setHeaders}
+            keyPlaceholder="Header"
+            valuePlaceholder="Value"
             presets={[
               { key: 'Content-Type', value: 'application/json' },
               { key: 'Accept', value: 'application/json' },
@@ -204,7 +287,9 @@ export function RequestPanel() {
       {/* 状态栏 */}
       {response && (
         <div className="px-4 py-1.5 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-3">
-          <span className={`font-mono font-semibold ${response.status >= 200 && response.status < 300 ? 'text-emerald-600 dark:text-emerald-400' : response.status >= 400 ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400'}`}>
+          <span
+            className={`font-mono font-semibold ${response.status >= 200 && response.status < 300 ? 'text-emerald-600 dark:text-emerald-400' : response.status >= 400 ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400'}`}
+          >
             {response.status} {response.status_text}
           </span>
           <span>·</span>
@@ -212,6 +297,10 @@ export function RequestPanel() {
           <span>·</span>
           <span>{(response.size_bytes / 1024).toFixed(2)} KB</span>
         </div>
+      )}
+    </div>
+      {newCollectionDialog && (
+        <CollectionDialog onClose={() => setNewCollectionDialog(false)} onSave={handleNewCollectionFromSave} />
       )}
     </div>
   );

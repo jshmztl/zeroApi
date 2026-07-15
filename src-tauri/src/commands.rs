@@ -99,6 +99,11 @@ pub async fn clear_history(state: State<'_, AppState>) -> AppResult<()> {
 }
 
 #[tauri::command]
+pub async fn delete_history(state: State<'_, AppState>, id: String) -> AppResult<()> {
+    state.db.delete_history(&id)
+}
+
+#[tauri::command]
 pub async fn list_favorites(state: State<'_, AppState>) -> AppResult<Vec<Favorite>> {
     state.db.list_favorites()
 }

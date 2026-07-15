@@ -35,10 +35,16 @@ export function SettingsPage() {
   }, []);
 
   const clearAll = async () => {
-    if (!confirm("确定清空所有数据(历史/收藏/集合/环境/设置)?此操作不可恢复。")) return;
+    const input = window.prompt(
+      '⚠️ 此操作将永久删除全部数据（历史/收藏/集合/环境/设置）且无法恢复！\n\n请输入 "确认清空" 四个字后点击确定：'
+    );
+    if (input !== '确认清空') {
+      if (input !== null) toast.error('输入不正确，操作已取消');
+      return;
+    }
     await tauri.clearAllData();
     await loadAll();
-    toast.success("已清空所有数据");
+    toast.success('已清空所有数据');
   };
 
   const exportAll = async () => {

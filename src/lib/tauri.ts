@@ -25,6 +25,7 @@ export const tauri = {
   listHistory: (limit = 100) =>
     invoke<HistoryItem[]>("list_history", { limit }),
   clearHistory: () => invoke<void>("clear_history"),
+  deleteHistory: (id: string) => invoke<void>("delete_history", { id }),
 
   listFavorites: () => invoke<Favorite[]>("list_favorites"),
   addFavorite: (request: Request) =>

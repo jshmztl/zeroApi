@@ -91,6 +91,7 @@ pub fn run() {
             commands::delete_request,
             commands::list_history,
             commands::clear_history,
+            commands::delete_history,
             commands::list_favorites,
             commands::add_favorite,
             commands::remove_favorite,

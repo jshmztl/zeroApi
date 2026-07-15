@@ -169,6 +169,12 @@ impl Database {
         Ok(())
     }
 
+    pub fn delete_history(&self, id: &str) -> AppResult<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute("DELETE FROM history WHERE id = ?1", params![id])?;
+        Ok(())
+    }
+
     // ---------- Favorites ----------
 
     pub fn add_favorite(&self, fav: &Favorite) -> AppResult<()> {
