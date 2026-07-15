@@ -21,10 +21,29 @@ use crate::db::Database;
 
 pub use error::{AppError, AppResult};
 
+/// 请求取消注册表
+pub mod cancel {
+    use std::collections::HashMap;
+    use std::sync::Arc;
+    use tokio::sync::{oneshot, Mutex};
+
+    #[derive(Default)]
+    pub struct CancelRegistry(pub Mutex<HashMap<String, oneshot::Sender<()>>>);
+
+    impl CancelRegistry {
+        pub fn new() -> Self {
+            Self::default()
+        }
+    }
+
+    pub type SharedRegistry = Arc<CancelRegistry>;
+}
+
 /// 共享应用状态
 pub struct AppState {
     pub db: Arc<Database>,
     pub http_client: Arc<reqwest::Client>,
+    pub cancel_registry: cancel::SharedRegistry,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -60,12 +79,14 @@ pub fn run() {
             app.manage(AppState {
                 db: Arc::new(db),
                 http_client: Arc::new(http_client),
+                cancel_registry: Arc::new(cancel::CancelRegistry::new()),
             });
 
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             commands::send_request,
+            commands::cancel_request,
             commands::save_request,
             commands::delete_request,
             commands::list_history,

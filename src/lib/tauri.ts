@@ -13,8 +13,10 @@ import type {
 } from "@/types";
 
 export const tauri = {
-  sendRequest: (request: Request) =>
-    invoke<ResponseSnapshot>("send_request", { request }),
+  sendRequest: (request: Request, clientId?: string) =>
+    invoke<ResponseSnapshot>("send_request", { request, clientId }),
+  cancelRequest: (clientId: string) =>
+    invoke<boolean>("cancel_request", { clientId }),
   saveRequest: (request: Request) =>
     invoke<string>("save_request", { request }),
   deleteRequest: (id: string) =>

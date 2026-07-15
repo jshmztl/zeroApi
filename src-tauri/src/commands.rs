@@ -13,26 +13,59 @@ use crate::AppState;
 pub async fn send_request(
     state: State<'_, AppState>,
     request: Request,
+    client_id: Option<String>,
 ) -> AppResult<ResponseSnapshot> {
-    let settings = state.db.get_settings().unwrap_or_default();
-    let envs = state.db.list_environments()?;
-    let active = envs.iter().find(|e| e.active);
-    let env_vars = collect_env_vars(active);
+    let cid = client_id.unwrap_or_else(|| Uuid::new_v4().to_string());
 
-    let resp = execute(&state.http_client, &request, &env_vars, &settings).await?;
+    let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+    state.cancel_registry.0.lock().await.insert(cid.clone(), tx);
 
-    // 自动保存历史
-    if settings.auto_save_history {
-        let item = HistoryItem {
-            id: Uuid::new_v4().to_string(),
-            request,
-            response: resp.clone(),
-            created_at: chrono::Utc::now().timestamp_millis(),
-        };
-        state.db.add_history(&item)?;
-    }
+    let db = state.db.clone();
+    let http_client = state.http_client.clone();
+    let cancel_registry = state.cancel_registry.clone();
 
+    let result = async {
+        let settings = db.get_settings().unwrap_or_default();
+        let envs = db.list_environments()?;
+        let active = envs.iter().find(|e| e.active);
+        let env_vars = collect_env_vars(active);
+
+        let resp = execute(&http_client, &request, &env_vars, &settings).await?;
+
+        // 自动保存历史
+        if settings.auto_save_history {
+            let item = HistoryItem {
+                id: Uuid::new_v4().to_string(),
+                request,
+                response: resp.clone(),
+                created_at: chrono::Utc::now().timestamp_millis(),
+            };
+            db.add_history(&item)?;
+        }
+
+        Ok::<_, AppError>(resp)
+    };
+
+    let resp = tokio::select! {
+        r = result => r?,
+        _ = rx => return Err(AppError::Other("请求已取消".into())),
+    };
+
+    cancel_registry.0.lock().await.remove(&cid);
     Ok(resp)
+}
+
+#[tauri::command]
+pub async fn cancel_request(
+    state: State<'_, AppState>,
+    client_id: String,
+) -> AppResult<bool> {
+    if let Some(tx) = state.cancel_registry.0.lock().await.remove(&client_id) {
+        let _ = tx.send(());
+        Ok(true)
+    } else {
+        Ok(false)
+    }
 }
 
 #[tauri::command]

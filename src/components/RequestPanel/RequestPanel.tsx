@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Send, Star } from "lucide-react";
+import { Send, Star, X } from "lucide-react";
 import { useRequestStore } from "@/store/requestStore";
 import { useDataStore } from "@/store/dataStore";
 import { Button } from "@/components/ui/Button";
@@ -32,7 +32,8 @@ type TabKey = "params" | "headers" | "body" | "auth";
 export function RequestPanel() {
   const {
     request, setMethod, setUrl, setParams, setHeaders, setBody, setAuth,
-    loading, setLoading, setResponse, setError, clearError, response,
+    loading, response, error,
+    send, cancel,
   } = useRequestStore();
   const { loadHistory, loadFavorites } = useDataStore();
   const [tab, setTab] = React.useState<TabKey>("params");
@@ -40,24 +41,31 @@ export function RequestPanel() {
   const enabledParamsCount = request.params.filter((p) => p.enabled && p.key).length;
   const enabledHeadersCount = request.headers.filter((h) => h.enabled && h.key).length;
 
-  const send = async () => {
+  const handleSend = async () => {
     if (!request.url.trim()) {
       toast.error("请输入 URL");
       return;
     }
-    setLoading(true);
-    clearError();
     try {
-      const resp = await tauri.sendRequest(request);
-      setResponse(resp);
-      await loadHistory();
+      await send();
+      // 发送完成后刷新历史
+      if (!getErrorIsCancel()) {
+        await loadHistory();
+      }
     } catch (e: any) {
       const msg = typeof e === "string" ? e : e?.message || String(e);
-      setError(msg);
-      toast.error(msg.length > 200 ? msg.slice(0, 200) + "..." : msg);
-    } finally {
-      setLoading(false);
+      if (!msg.includes("请求已取消")) {
+        toast.error(msg.length > 200 ? msg.slice(0, 200) + "..." : msg);
+      }
     }
+  };
+
+  const getErrorIsCancel = () => {
+    return false; // 取消错误已在 send 中静默处理
+  };
+
+  const handleCancel = async () => {
+    await cancel();
   };
 
   const favorite = async () => {
@@ -78,7 +86,7 @@ export function RequestPanel() {
 
   return (
     <div className="flex flex-col bg-white dark:bg-gray-900">
-      {/* 顶部：方法 + URL + 发送 */}
+      {/* 顶部：方法 + URL + 发送/取消 */}
       <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex items-center gap-2">
         <Select
           value={request.method}
@@ -92,18 +100,18 @@ export function RequestPanel() {
           className="flex-1 font-mono text-sm"
           onKeyDown={(e) => {
             if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-              send();
+              loading ? handleCancel() : handleSend();
             }
           }}
         />
         <Button
           id="zeroapi-send-btn"
-          variant="primary"
-          onClick={send}
+          variant={loading ? "danger" : "primary"}
+          onClick={loading ? handleCancel : handleSend}
           loading={loading}
         >
-          {!loading && <Send className="h-3.5 w-3.5" />}
-          发送
+          {loading ? <X className="h-3.5 w-3.5" /> : <Send className="h-3.5 w-3.5" />}
+          {loading ? "取消" : "发送"}
         </Button>
         <Button
           id="zeroapi-fav-btn"
