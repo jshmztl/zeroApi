@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Star, History, Globe, FolderOpen, Upload, Plus, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useDataStore } from '@/store/dataStore';
+import { useRequestStore } from '@/store/requestStore';
 import { cn, formatDate } from '@/lib/utils';
 import { tauri } from '@/lib/tauri';
 import { toast } from '@/components/ui/Toast';
@@ -93,6 +94,16 @@ export function Sidebar() {
             </button>
           );
         })}
+        <button
+          onClick={() => {
+            useRequestStore.getState().resetRequest();
+            toast.success('已新建空白请求');
+          }}
+          className="h-8 w-8 inline-flex items-center justify-center rounded-md hover:bg-white dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 flex-shrink-0"
+          title="新建空白请求 (Ctrl+N)"
+        >
+          <Plus className="h-3.5 w-3.5" />
+        </button>
       </div>
 
       <div className="flex-1 overflow-auto p-2">

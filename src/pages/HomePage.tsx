@@ -32,6 +32,10 @@ export function HomePage() {
         e.preventDefault();
         document.getElementById("zeroapi-fav-btn")?.click();
       }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "n") {
+        e.preventDefault();
+        resetRequest();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
