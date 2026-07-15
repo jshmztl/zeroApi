@@ -22,6 +22,18 @@ export function SettingsPage() {
     tauri.appVersion().then(setVersion).catch(() => {});
   }, []);
 
+  // 离开设置页 / 关闭窗口时强制 flush 待保存的设置
+  React.useEffect(() => {
+    const handler = () => {
+      useSettingsStore.getState().flush();
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => {
+      handler();
+      window.removeEventListener("beforeunload", handler);
+    };
+  }, []);
+
   const clearAll = async () => {
     if (!confirm("确定清空所有数据(历史/收藏/集合/环境/设置)?此操作不可恢复。")) return;
     await tauri.clearAllData();
