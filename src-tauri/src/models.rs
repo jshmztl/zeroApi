@@ -56,9 +56,7 @@ pub struct KeyValue {
 #[serde(rename_all = "snake_case")]
 pub enum RequestStatus {
     #[default]
-    Draft,
     InDevelopment,
-    Testing,
     Deprecated,
     Production,
 }
@@ -66,9 +64,7 @@ pub enum RequestStatus {
 impl RequestStatus {
     pub fn as_str(&self) -> &'static str {
         match self {
-            RequestStatus::Draft => "draft",
             RequestStatus::InDevelopment => "in_development",
-            RequestStatus::Testing => "testing",
             RequestStatus::Deprecated => "deprecated",
             RequestStatus::Production => "production",
         }
