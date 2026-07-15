@@ -5,12 +5,13 @@ import { Tabs } from '@/components/ui/Tabs';
 import { Button } from '@/components/ui/Button';
 import { CodeEditor } from '@/components/CodeEditor/CodeEditor';
 import {
-  tryPrettyJSON,
+  tryPretty,
   languageFromContentType,
   tryDetectContentType,
   copyToClipboard,
   downloadText,
 } from '@/lib/formatter';
+import type { PrettyLang } from '@/lib/formatter';
 import { formatBytes, formatDuration, statusColor } from '@/lib/utils';
 import { toast } from '@/components/ui/Toast';
 
@@ -29,11 +30,8 @@ export function ResponsePanel() {
   const displayBody = React.useMemo(() => {
     if (!response) return '';
     if (raw) return response.body;
-    if (lang === 'json') {
-      const r = tryPrettyJSON(response.body);
-      return r.ok ? r.text : response.body;
-    }
-    return response.body;
+    const r = tryPretty(response.body, lang as PrettyLang);
+    return r.ok ? r.text : response.body;
   }, [response, raw, lang]);
 
   const cookieEntries = React.useMemo(() => {
@@ -155,16 +153,20 @@ export function ResponsePanel() {
         {tab === 'body' && (
           <div className="h-full flex flex-col">
             <div className="px-4 py-1.5 flex items-center gap-2 text-[10px]">
-              {lang === 'json' && (
-                <button
-                  onClick={() => setRaw(!raw)}
-                  className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400"
-                >
-                  {raw ? 'Pretty' : 'Raw'}
-                </button>
-              )}
-              {lang === 'json' && !raw && (
-                <span className="text-gray-400 dark:text-gray-500">JSON 已美化</span>
+              {['json', 'xml', 'html', 'sql', 'css'].includes(lang) && (
+                <>
+                  <button
+                    onClick={() => setRaw(!raw)}
+                    className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400"
+                  >
+                    {raw ? 'Pretty' : 'Raw'}
+                  </button>
+                  {!raw && (
+                    <span className="text-gray-400 dark:text-gray-500">
+                      {lang.toUpperCase()} 已美化
+                    </span>
+                  )}
+                </>
               )}
             </div>
             <div className="flex-1 min-h-0 px-4 pb-2">

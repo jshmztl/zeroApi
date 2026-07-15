@@ -28,6 +28,7 @@
     "react-router-dom": "^6.27.0",
     "shiki": "^1.24.0",
     "tailwind-merge": "^2.5.4",
+    "vkbeautify": "^0.99.3",
     "zustand": "^5.0.1"
   },
   "devDependencies": {
