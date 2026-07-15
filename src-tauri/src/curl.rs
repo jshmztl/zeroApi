@@ -254,6 +254,7 @@ pub fn parse(input: &str) -> AppResult<Request> {
         body,
         auth,
         collection_id: None,
+        status: RequestStatus::default(),
     })
 }
 

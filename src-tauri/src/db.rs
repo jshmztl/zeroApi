@@ -294,26 +294,23 @@ impl Database {
 
     pub fn list_saved_requests(&self, collection_id: Option<&str>) -> AppResult<Vec<Request>> {
         let conn = self.conn.lock().unwrap();
-        let (sql, param) = if let Some(cid) = collection_id {
-            ("SELECT id, name, method, url, params, headers, body, auth, status, collection_id FROM requests WHERE collection_id = ?1 ORDER BY updated_at DESC".to_string(),
-             Some(cid.to_string()))
-        } else {
-            ("SELECT id, name, method, url, params, headers, body, auth, status, collection_id FROM requests ORDER BY updated_at DESC".to_string(),
-             None)
-        };
-        let mut stmt = conn.prepare(&sql)?;
-        let rows = if let Some(ref cid) = param {
-            stmt.query_map(params![cid], |row| {
-                Self::map_saved_request(row)
-            })?
-        } else {
-            stmt.query_map([], |row| {
-                Self::map_saved_request(row)
-            })?
-        };
         let mut out = Vec::new();
-        for r in rows {
-            out.push(r?);
+
+        let sql = "SELECT id, name, method, url, params, headers, body, auth, status, collection_id FROM requests WHERE collection_id = ?1 ORDER BY updated_at DESC";
+        let all_sql = "SELECT id, name, method, url, params, headers, body, auth, status, collection_id FROM requests ORDER BY updated_at DESC";
+
+        if let Some(cid) = collection_id {
+            let mut stmt = conn.prepare(sql)?;
+            let rows = stmt.query_map(params![cid], |row| Self::map_saved_request(row))?;
+            for r in rows {
+                out.push(r?);
+            }
+        } else {
+            let mut stmt = conn.prepare(all_sql)?;
+            let rows = stmt.query_map([], |row| Self::map_saved_request(row))?;
+            for r in rows {
+                out.push(r?);
+            }
         }
         Ok(out)
     }
@@ -383,10 +380,6 @@ impl Database {
     }
 
     // ---------- Maintenance ----------
-
-    fn now() -> i64 {
-        chrono::Utc::now().timestamp_millis()
-    }
 
     pub fn clear_all(&self) -> AppResult<()> {
         let conn = self.conn.lock().unwrap();
