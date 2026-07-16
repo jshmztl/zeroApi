@@ -2,11 +2,14 @@ import * as React from "react";
 import Editor, { loader } from "@monaco-editor/react";
 import { useSettingsStore } from "@/store/settingsStore";
 
-// 预配置 CDN 源，支持多 CDN 切换
-// jsdelivr 国内可用性较高，如果失败可尝试 unpkg
+// 配置 Monaco Editor 使用本地打包 workers（不依赖 CDN）
+// vite-plugin-monaco-editor 在构建时将 workers 输出到 /monacoeditorwork/
+// 开发模式下用 CDN 方便开发调试，生产模式直接加载本地资源
 loader.config({
   paths: {
-    vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs",
+    vs: import.meta.env.PROD
+      ? "/monacoeditorwork"
+      : "https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs",
   },
 });
 
@@ -20,46 +23,8 @@ export function CodeEditor({
   readOnly?: boolean;
 }) {
   const { settings } = useSettingsStore();
-  const [monacoReady, setMonacoReady] = React.useState<boolean | null>(null);
   const isDark = settings.theme === "dark" ||
     (settings.theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
-
-  // 加载超时检测：5秒后若 Monaco 仍未挂载，自动降级为 textarea
-  React.useEffect(() => {
-    const timer = setTimeout(() => {
-      if (monacoReady === null) {
-        setMonacoReady(false);
-      }
-    }, 5000);
-    return () => clearTimeout(timer);
-  }, [monacoReady]);
-
-  // 降级方案：普通 textarea（Monaco 加载失败时的回退）
-  if (monacoReady === false) {
-    return (
-      <div
-        className="border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden bg-white dark:bg-gray-900"
-        style={{ height }}
-      >
-        <textarea
-          className="w-full h-full bg-transparent p-3 font-mono text-xs resize-none focus:outline-none text-gray-800 dark:text-gray-200 placeholder-gray-400"
-          value={value}
-          onChange={(e) => onChange?.(e.target.value)}
-          readOnly={readOnly}
-          placeholder="输入请求体..."
-        />
-      </div>
-    );
-  }
-
-  const loadingElement = (
-    <div
-      className="flex items-center justify-center text-xs text-gray-400 bg-gray-50 dark:bg-gray-800/50"
-      style={{ height }}
-    >
-      加载编辑器...
-    </div>
-  );
 
   return (
     <div className={
@@ -72,8 +37,11 @@ export function CodeEditor({
         language={language}
         height={height}
         theme={isDark ? "vs-dark" : "vs"}
-        loading={loadingElement}
-        onMount={() => setMonacoReady(true)}
+        loading={
+          <div className="flex items-center justify-center h-full text-xs text-gray-400">
+            加载编辑器...
+          </div>
+        }
         options={{
           fontSize: 12,
           fontFamily: "JetBrains Mono, Fira Code, Consolas, monospace",
