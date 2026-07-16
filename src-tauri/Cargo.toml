@@ -1,6 +1,6 @@
 [package]
 name = "zeroapi"
-version = "1.0.0"
+version = "1.1.3"
 description = "ZeroApi - 零登录 零云端 零 CORS 的 API 调试工具"
 authors = ["ZeroApi"]
 edition = "2021"

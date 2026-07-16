@@ -1,17 +1,11 @@
 import * as React from "react";
 import Editor, { loader } from "@monaco-editor/react";
+import * as monaco from "monaco-editor";
 import { useSettingsStore } from "@/store/settingsStore";
 
-// 配置 Monaco Editor 使用本地打包 workers（不依赖 CDN）
-// vite-plugin-monaco-editor 在构建时将 workers 输出到 /monacoeditorwork/
-// 开发模式下用 CDN 方便开发调试，生产模式直接加载本地资源
-loader.config({
-  paths: {
-    vs: import.meta.env.PROD
-      ? "/monacoeditorwork"
-      : "https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs",
-  },
-});
+// 使用 Vite 已打包的 monaco-editor 实例，避免运行时时从 URL 加载
+// （打包安装后路径解析失败会导致编辑器一直卡在 Loading 状态）
+loader.config({ monaco });
 
 export function CodeEditor({
   value, onChange, language = "text", height = "200px", readOnly = false,
