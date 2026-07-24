@@ -63,7 +63,7 @@ pub fn parse(input: &str) -> AppResult<Request> {
                 i += 1;
                 if i < tokens.len() {
                     if let Some((k, v)) = split_header(&tokens[i]) {
-                        headers.push(KeyValue { key: k, value: v, enabled: true });
+                        headers.push(KeyValue { key: k, value: v, enabled: true, description: None });
                     }
                 }
             }
@@ -84,9 +84,9 @@ pub fn parse(input: &str) -> AppResult<Request> {
                     if let Some(eq) = tokens[i].find('=') {
                         let k = tokens[i][..eq].to_string();
                         let v = tokens[i][eq + 1..].to_string();
-                        url_encoded_parts.push(KeyValue { key: k, value: v, enabled: true });
+                        url_encoded_parts.push(KeyValue { key: k, value: v, enabled: true, description: None });
                     } else {
-                        url_encoded_parts.push(KeyValue { key: tokens[i].clone(), value: "".into(), enabled: true });
+                        url_encoded_parts.push(KeyValue { key: tokens[i].clone(), value: "".into(), enabled: true, description: None });
                     }
                     if body_type == "none" {
                         body_type = "urlencoded";
@@ -98,7 +98,7 @@ pub fn parse(input: &str) -> AppResult<Request> {
                 i += 1;
                 if i < tokens.len() {
                     if let Some((k, v)) = split_first_eq(&tokens[i]) {
-                        form_parts.push(KeyValue { key: k, value: v, enabled: true });
+                        form_parts.push(KeyValue { key: k, value: v, enabled: true, description: None });
                     }
                     body_type = "formdata";
                 }
@@ -162,6 +162,7 @@ pub fn parse(input: &str) -> AppResult<Request> {
             key: "Cookie".to_string(),
             value: cookies.join("; "),
             enabled: true,
+            description: None,
         });
     }
 
@@ -255,6 +256,7 @@ pub fn parse(input: &str) -> AppResult<Request> {
         auth,
         collection_id: None,
         status: RequestStatus::default(),
+        last_response: None,
     })
 }
 
@@ -330,7 +332,7 @@ fn parse_kv_string(s: &str) -> Vec<KeyValue> {
                 None => (p.to_string(), String::new()),
             };
             let v = urlencoding_decode(&v);
-            Some(KeyValue { key: urlencoding_decode(&k), value: v, enabled: true })
+            Some(KeyValue { key: urlencoding_decode(&k), value: v, enabled: true, description: None })
         })
         .collect()
 }

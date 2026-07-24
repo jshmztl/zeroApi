@@ -44,7 +44,7 @@ export const useRequestStore = create<RequestState>((set, get) => ({
   setParams: (p) => set((s) => ({ request: { ...s.request, params: p } })),
   setHeaders: (h) => set((s) => ({ request: { ...s.request, headers: h } })),
   setStatus: (st) => set((s) => ({ request: { ...s.request, status: st } })),
-  loadRequest: (r) => set({ request: r, response: null, error: null }),
+  loadRequest: (r) => set({ request: r, response: r.last_response || null, error: null }),
   resetRequest: () =>
     set({ request: makeEmptyRequest(), response: null, error: null, clientId: null }),
   setResponse: (r) => set({ response: r, loading: false }),

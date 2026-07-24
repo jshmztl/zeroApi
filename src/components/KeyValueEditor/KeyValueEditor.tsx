@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 export function KeyValueEditor({
   value, onChange,
   keyPlaceholder, valuePlaceholder,
-  presets, bulkPaste,
+  presets, bulkPaste, showDescription,
 }: {
   value: KeyValue[];
   onChange: (v: KeyValue[]) => void;
@@ -16,6 +16,7 @@ export function KeyValueEditor({
   valuePlaceholder?: string;
   presets?: { key: string; value: string }[];
   bulkPaste?: boolean;
+  showDescription?: boolean;
 }) {
   const add = (preset?: { key: string; value: string }) => {
     onChange([
@@ -94,6 +95,14 @@ export function KeyValueEditor({
             placeholder={valuePlaceholder}
             className="flex-1 font-mono text-xs"
           />
+          {showDescription && (
+            <Input
+              value={kv.description || ''}
+              onChange={(e) => update(i, { description: e.target.value })}
+              placeholder="描述"
+              className="flex-1 text-xs"
+            />
+          )}
           <button
             onClick={() => remove(i)}
             className="text-gray-300 hover:text-red-500 p-1"

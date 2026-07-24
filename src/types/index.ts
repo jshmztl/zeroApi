@@ -6,6 +6,7 @@ export interface KeyValue {
   key: string;
   value: string;
   enabled: boolean;
+  description?: string;
 }
 
 export type Body =
@@ -53,6 +54,7 @@ export interface Request {
   auth: Auth;
   collection_id?: string | null;
   status: RequestStatus;
+  last_response?: ResponseSnapshot | null;
 }
 
 export interface ResponseSnapshot {

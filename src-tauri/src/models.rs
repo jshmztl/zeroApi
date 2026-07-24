@@ -37,6 +37,8 @@ pub struct KeyValue {
     pub value: String,
     #[serde(default)]
     pub enabled: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
 }
 
 /// 请求状态枚举
@@ -112,6 +114,8 @@ pub struct Request {
     pub collection_id: Option<String>,
     #[serde(default)]
     pub status: RequestStatus,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_response: Option<ResponseSnapshot>,
 }
 
 /// 响应快照

@@ -33,7 +33,7 @@ export function CollectionPage() {
 
   React.useEffect(() => {
     loadCollections();
-    loadSavedRequests(id);
+    loadSavedRequests();
   }, [loadCollections, loadSavedRequests, id]);
 
   const col = collections.find((c) => c.id === id);
@@ -88,7 +88,7 @@ export function CollectionPage() {
   const handleRemoveRequest = async (reqId: string) => {
     try {
       await detachFromCollection(col.id, reqId);
-      await loadSavedRequests(id);
+      await loadSavedRequests();
       toast.success('已从集合移除');
     } catch (e: any) {
       toast.error('移除失败: ' + String(e));
@@ -100,7 +100,7 @@ export function CollectionPage() {
     try {
       await detachFromCollection(col.id, reqId);
       await attachToCollection(targetId, reqId);
-      await loadSavedRequests(id);
+      await loadSavedRequests();
       toast.success('已迁移');
       setMoveReqId(null);
       setMoveTarget(null);

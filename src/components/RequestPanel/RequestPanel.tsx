@@ -68,10 +68,17 @@ export function RequestPanel() {
     activeEnvId,
     attachToCollection,
   } = useDataStore();
-  const [tab, setTab] = React.useState<TabKey>('params');
+  const [tab, setTab] = React.useState<TabKey>('body');
   const [saveDropdown, setSaveDropdown] = React.useState(false);
   const [statusDropdown, setStatusDropdown] = React.useState(false);
   const [newCollectionDialog, setNewCollectionDialog] = React.useState(false);
+
+  // 加载已保存/历史请求时，默认切换到 Body tab
+  React.useEffect(() => {
+    const handler = () => setTab('body');
+    window.addEventListener('zeroapi:load-request', handler);
+    return () => window.removeEventListener('zeroapi:load-request', handler);
+  }, []);
 
   React.useEffect(() => {
     loadCollections();
@@ -130,7 +137,8 @@ export function RequestPanel() {
     }
     try {
       const reqId = request.id || nanoid();
-      await tauri.saveSavedRequest({ ...request, id: reqId }, collectionId);
+      const lastResponse = response && response.status >= 200 && response.status < 400 ? response : null;
+      await tauri.saveSavedRequest({ ...request, id: reqId, last_response: lastResponse }, collectionId);
       await attachToCollection(collectionId, reqId);
       await loadFavorites();
       await loadSavedRequests();
@@ -214,22 +222,29 @@ export function RequestPanel() {
         <Select value={request.method} onChange={setMethod} options={METHOD_OPTIONS} />
 
         {/* URL 输入（带 base_url 前缀） */}
-        <div className="flex-1 flex items-center">
-          {baseUrl && (
-            <span className="h-8 px-2 text-xs font-mono bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 border-r-0 rounded-l flex items-center text-gray-500 dark:text-gray-400 whitespace-nowrap select-all cursor-default">
-              {baseUrl.replace(/\/$/, '')}
-            </span>
+        <div className="flex-1 flex flex-col">
+          <div className="flex items-center">
+            {baseUrl && (
+              <span className="h-8 px-2 text-xs font-mono bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 border-r-0 rounded-l flex items-center text-gray-500 dark:text-gray-400 whitespace-nowrap select-all cursor-default">
+                {baseUrl.replace(/\/$/, '')}
+              </span>
+            )}
+            <Input
+              value={request.url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder={baseUrl ? '/api/users' : 'https://api.example.com/users'}
+              className={cn('flex-1 font-mono text-sm', baseUrl && 'rounded-l-none')}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey))
+                  loading ? handleCancel() : handleSend();
+              }}
+            />
+          </div>
+          {fullUrl !== request.url && fullUrl && (
+            <div className="text-[10px] font-mono text-gray-400 dark:text-gray-500 truncate mt-0.5 pl-0.5 select-all">
+              {baseUrl ? baseUrl.replace(/\/$/, '') + fullUrl : fullUrl}
+            </div>
           )}
-          <Input
-            value={request.url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder={baseUrl ? '/api/users' : 'https://api.example.com/users'}
-            className={cn('flex-1 font-mono text-sm', baseUrl && 'rounded-l-none')}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && (e.ctrlKey || e.metaKey))
-                loading ? handleCancel() : handleSend();
-            }}
-          />
         </div>
 
         {/* 发送/取消 */}
@@ -296,8 +311,8 @@ export function RequestPanel() {
         value={tab}
         onChange={(v) => setTab(v as TabKey)}
         items={[
-          { value: 'params', label: 'Params', badge: enabledParamsCount || undefined },
           { value: 'headers', label: 'Headers', badge: enabledHeadersCount || undefined },
+          { value: 'params', label: 'Query', badge: enabledParamsCount || undefined },
           { value: 'body', label: 'Body' },
           { value: 'auth', label: 'Auth' },
         ]}
@@ -313,6 +328,7 @@ export function RequestPanel() {
             keyPlaceholder="参数名"
             valuePlaceholder="参数值"
             bulkPaste
+            showDescription
           />
         )}
         {tab === 'headers' && (

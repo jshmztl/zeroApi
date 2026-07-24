@@ -85,6 +85,9 @@ impl Database {
         // 迁移：为老版本数据库添加 base_url 列
         Self::ensure_column(&conn, "environments", "base_url",
             "ALTER TABLE environments ADD COLUMN base_url TEXT NOT NULL DEFAULT ''")?;
+        // 迁移：为老版本数据库添加 last_response 列
+        Self::ensure_column(&conn, "requests", "last_response",
+            "ALTER TABLE requests ADD COLUMN last_response TEXT")?;
         Ok(())
     }
 
@@ -284,16 +287,17 @@ impl Database {
         let headers = serde_json::to_string(&req.headers)?;
         let body = serde_json::to_string(&req.body)?;
         let auth = serde_json::to_string(&req.auth)?;
+        let last_response = req.last_response.as_ref().map(|r| serde_json::to_string(r)).transpose()?;
         let now = Self::now();
         conn.execute(
-            "INSERT INTO requests (id, name, method, url, params, headers, body, auth, status, collection_id, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?11)
+            "INSERT INTO requests (id, name, method, url, params, headers, body, auth, status, collection_id, last_response, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?12)
              ON CONFLICT(id) DO UPDATE SET
                name=excluded.name, method=excluded.method, url=excluded.url,
                params=excluded.params, headers=excluded.headers, body=excluded.body, auth=excluded.auth,
-               status=excluded.status, collection_id=excluded.collection_id, updated_at=excluded.updated_at",
+               status=excluded.status, collection_id=excluded.collection_id, last_response=excluded.last_response, updated_at=excluded.updated_at",
             params![req.id, req.name, req.method, req.url, params, headers, body, auth,
-                    req.status.as_str(), collection_id, now],
+                    req.status.as_str(), collection_id, last_response, now],
         )?;
         Ok(())
     }
@@ -302,8 +306,8 @@ impl Database {
         let conn = self.conn.lock().unwrap();
         let mut out = Vec::new();
 
-        let sql = "SELECT id, name, method, url, params, headers, body, auth, status, collection_id FROM requests WHERE collection_id = ?1 ORDER BY updated_at DESC";
-        let all_sql = "SELECT id, name, method, url, params, headers, body, auth, status, collection_id FROM requests ORDER BY updated_at DESC";
+        let sql = "SELECT id, name, method, url, params, headers, body, auth, status, collection_id, last_response FROM requests WHERE collection_id = ?1 ORDER BY updated_at DESC";
+        let all_sql = "SELECT id, name, method, url, params, headers, body, auth, status, collection_id, last_response FROM requests ORDER BY updated_at DESC";
 
         if let Some(cid) = collection_id {
             let mut stmt = conn.prepare(sql)?;
@@ -328,7 +332,10 @@ impl Database {
         let auth_str: String = row.get(7)?;
         let status_str: String = row.get(8)?;
         let collection_id: Option<String> = row.get(9)?;
+        let last_response_str: Option<String> = row.get(10)?;
         let status: RequestStatus = serde_json::from_str(&format!("\"{}\"", status_str)).unwrap_or_default();
+        let last_response: Option<ResponseSnapshot> = last_response_str
+            .and_then(|s| serde_json::from_str(&s).ok());
         Ok(Request {
             id: row.get(0)?,
             name: row.get(1)?,
@@ -340,6 +347,7 @@ impl Database {
             auth: serde_json::from_str(&auth_str).unwrap_or_default(),
             collection_id,
             status,
+            last_response,
         })
     }
 
