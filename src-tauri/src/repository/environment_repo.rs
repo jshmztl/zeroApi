@@ -187,3 +187,71 @@ impl EnvironmentRepo {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::Database;
+    use std::sync::Arc;
+
+    fn setup() -> EnvironmentRepo {
+        let dir = std::env::temp_dir().join(format!("zeroapi-env-{}", uuid::Uuid::new_v4().simple()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let db = Arc::new(Database::new(dir.join("test.db")).unwrap());
+        db.migrate().unwrap();
+        EnvironmentRepo::new(db)
+    }
+
+    /// Secret 安全：明文不落库（vars JSON 只存引用），读取时解密注入
+    #[test]
+    fn test_secret_storage_encrypted() {
+        let repo = setup();
+        let env = Environment {
+            id: "env1".into(),
+            project_id: None,
+            name: "测试".into(),
+            base_url: "https://dev.example.com".into(),
+            vars: vec![
+                EnvironmentVariable::plain("PUBLIC", "public-value"),
+                EnvironmentVariable::secret("API_KEY", "super-secret-token-123"),
+            ],
+            active: true,
+        };
+        repo.upsert(&env).unwrap();
+
+        // vars JSON 中不能出现明文
+        let raw: String = {
+            let conn = repo.db.conn();
+            conn.query_row("SELECT vars FROM environments WHERE id='env1'", [], |r| r.get(0))
+                .unwrap()
+        };
+        assert!(!raw.contains("super-secret-token-123"), "Secret 明文泄漏到 SQLite!");
+        assert!(raw.contains("public-value"), "普通变量应明文存储");
+
+        // 读取时 Secret 解密注入
+        let loaded = repo.get("env1").unwrap().unwrap();
+        let api_key = loaded.vars.iter().find(|v| v.name == "API_KEY").unwrap();
+        assert_eq!(api_key.value, "super-secret-token-123");
+        assert_eq!(api_key.kind, VariableKind::Secret);
+        assert!(api_key.secret_ref.is_some());
+        let public = loaded.vars.iter().find(|v| v.name == "PUBLIC").unwrap();
+        assert_eq!(public.value, "public-value");
+
+        // 重新保存（带解密后的值）不破坏
+        repo.upsert(&loaded).unwrap();
+        let loaded2 = repo.get("env1").unwrap().unwrap();
+        assert_eq!(
+            loaded2.vars.iter().find(|v| v.name == "API_KEY").unwrap().value,
+            "super-secret-token-123"
+        );
+
+        // 删除环境级联删除引用
+        repo.delete("env1").unwrap();
+        let raw2: i64 = {
+            let conn = repo.db.conn();
+            conn.query_row("SELECT COUNT(*) FROM env_secret_refs WHERE env_id='env1'", [], |r| r.get(0))
+                .unwrap()
+        };
+        assert_eq!(raw2, 0);
+    }
+}

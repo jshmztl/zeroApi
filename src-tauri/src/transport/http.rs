@@ -66,6 +66,10 @@ impl HttpTransport {
     ) -> Result<ResponseSnapshot, NetworkError> {
         let start = Instant::now();
 
+        // Phase 4：分段探测（DNS / TCP / TLS），供 Timing 展示
+        // 探测值近似（reqwest 内部会再次建连），对诊断与内网场景足够
+        let (dns_ms, tcp_ms, tls_ms) = probe_phases(&compiled.url).await;
+
         let mut req = client
             .request(method_to_reqwest(compiled.method), compiled.url.clone())
             .timeout(std::time::Duration::from_millis(timeout_ms));
@@ -98,8 +102,10 @@ impl HttpTransport {
             }
         }
 
-        // 发送
+        // 发送（t0 = 请求发出，t1 = 响应头到达）
+        let t0 = Instant::now();
         let resp = req.send().await.map_err(|e| classify_error(&e))?;
+        let t1 = Instant::now();
         let elapsed = start.elapsed().as_millis() as u64;
 
         let status = resp.status().as_u16();
@@ -120,6 +126,7 @@ impl HttpTransport {
         // Body（大响应保护）
         let bytes = resp.bytes().await.map_err(|e| classify_error(&e))?;
         let size_bytes = bytes.len() as u64;
+        let t2 = Instant::now();
 
         let body = if size_bytes > self.max_preview_size {
             // 超限：保存到文件，UI 只展示元信息
@@ -145,9 +152,56 @@ impl HttpTransport {
             body,
             size_bytes,
             content_type,
-            timing: Timing::total(elapsed),
+            timing: Timing {
+                dns_ms,
+                tcp_ms,
+                tls_ms,
+                // 请求发出到响应头到达
+                request_ms: Some(t1.duration_since(t0).as_millis() as u64),
+                // 响应头到响应体完成
+                response_ms: Some(t2.duration_since(t1).as_millis() as u64),
+                total_ms: elapsed,
+            },
         })
     }
+}
+
+/// 分段探测（DNS / TCP / TLS），返回 (dns_ms, tcp_ms, tls_ms)
+pub(crate) async fn probe_phases(url: &url::Url) -> (Option<u64>, Option<u64>, Option<u64>) {
+    let host = url.host_str().unwrap_or("").to_string();
+    if host.is_empty() {
+        return (None, None, None);
+    }
+    let scheme = url.scheme().to_string();
+    let port = url.port().unwrap_or_else(|| {
+        if scheme == "https" || scheme == "wss" {
+            443
+        } else {
+            80
+        }
+    });
+
+    // DNS
+    let dns = crate::network::dns::resolve(&host).await;
+    let dns_ms = if dns.ok { Some(dns.ms) } else { None };
+
+    // TCP
+    let tcp = crate::network::tcp::connect(&host, port).await;
+    let tcp_ms = if tcp.ok { Some(tcp.ms) } else { None };
+
+    // TLS（仅 https / wss 且 TCP 成功）
+    let tls_ms = if (scheme == "https" || scheme == "wss") && tcp.ok {
+        let tls = crate::network::tls::handshake(&host, port, &host).await;
+        if tls.ok {
+            Some(tls.ms)
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    (dns_ms, tcp_ms, tls_ms)
 }
 
 /// 把响应体保存为文件（目录不存在则创建），返回路径

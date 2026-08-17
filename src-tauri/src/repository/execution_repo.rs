@@ -207,3 +207,98 @@ impl ExecutionRepo {
         ))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::Database;
+    use crate::domain::{HeaderEntry, HttpMethod, ResponseBody, Timing};
+    use std::sync::Arc;
+
+    fn setup() -> ExecutionRepo {
+        let dir = std::env::temp_dir().join(format!("zeroapi-exec-{}", uuid::Uuid::new_v4().simple()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let db = Arc::new(Database::new(dir.join("test.db")).unwrap());
+        db.migrate().unwrap();
+        // 插入请求行，满足 request_executions 的外键约束
+        {
+            let conn = db.conn();
+            conn.execute(
+                "INSERT INTO requests (id, collection_id, name, method, url, headers, query_params, body, auth, sort_order, created_at, updated_at)
+                 VALUES ('r1', 'uncategorized', '测试请求', 'GET', 'https://api.example.com', '[]', '[]', NULL, NULL, 0, 0, 0)",
+                [],
+            )
+            .unwrap();
+        }
+        ExecutionRepo::new(db)
+    }
+
+    fn sample_response(status: u16) -> ResponseSnapshot {
+        ResponseSnapshot {
+            status,
+            status_text: "OK".into(),
+            headers: vec![HeaderEntry::new("content-type", "application/json")],
+            body: ResponseBody::Text("{\"ok\":true}".into()),
+            size_bytes: 12,
+            content_type: Some("application/json".into()),
+            timing: Timing::total(42),
+        }
+    }
+
+    #[test]
+    fn test_insert_and_list() {
+        let repo = setup();
+        let ok = RequestExecution::success("e1".into(), "r1".into(), 100, 42, sample_response(200));
+        repo.insert(&ok, "GET", "https://api.example.com").unwrap();
+        let fail = RequestExecution::failure(
+            "e2".into(),
+            "r1".into(),
+            200,
+            3000,
+            NetworkError::new(NetworkErrorKind::Timeout, "timeout"),
+        );
+        repo.insert(&fail, "POST", "https://api.example.com").unwrap();
+
+        let all = repo.list(100, None).unwrap();
+        assert_eq!(all.len(), 2);
+        // 按时间倒序
+        assert_eq!(all[0].id, "e2");
+        assert_eq!(all[0].success, false);
+        assert_eq!(all[0].error.as_ref().unwrap().kind, NetworkErrorKind::Timeout);
+
+        // 按请求过滤
+        let by_req = repo.list(100, Some("r1")).unwrap();
+        assert_eq!(by_req.len(), 2);
+        assert!(by_req.iter().any(|e| e.status_code == Some(200)));
+        assert!(by_req.iter().any(|e| e.response.is_some()));
+
+        // 摘要列表带名称（对应 requests 行存在 → 名称正确）
+        let summary = repo.list_summary(100).unwrap();
+        assert_eq!(summary.len(), 2);
+        assert_eq!(summary[0].method, HttpMethod::Post);
+        assert_eq!(summary[0].url, "https://api.example.com");
+        assert_eq!(summary[0].name, "测试请求");
+    }
+
+    #[test]
+    fn test_prune_history_limit() {
+        let repo = setup();
+        for i in 0..10 {
+            let e = RequestExecution::success(
+                format!("e{}", i),
+                "r1".into(),
+                i * 100,
+                1,
+                sample_response(200),
+            );
+            repo.insert(&e, "GET", "https://api.example.com").unwrap();
+        }
+        // 只保留最近 3 条（created_at 最大）
+        repo.prune(3).unwrap();
+        let all = repo.list(100, None).unwrap();
+        assert_eq!(all.len(), 3);
+        // e7 e8 e9（created_at 700/800/900）
+        assert!(all.iter().any(|e| e.id == "e9"));
+        assert!(!all.iter().any(|e| e.id == "e0"));
+    }
+}

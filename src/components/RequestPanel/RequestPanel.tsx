@@ -176,15 +176,15 @@ export function RequestPanel() {
   const fullUrl = buildFullUrl(request.url, request.query);
 
   return (
-    <div className="flex flex-col bg-white dark:bg-gray-900">
+    <div className="flex flex-col bg-card dark:bg-gray-900">
       {/* 顶部：名称 + 方法 + URL + 操作按钮 */}
-      <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex items-center gap-2">
+      <div className="px-4 py-3 border-b border-border flex items-center gap-2">
         {/* 请求名（必填） */}
         <Input
           value={request.name}
           onChange={(e) => useRequestStore.getState().setName(e.target.value)}
           placeholder="请求名（必填）"
-          className="w-40 text-sm border-primary-300 focus:border-primary-500"
+          className="w-40 text-sm border-primary-200 dark:border-primary-900/50 focus:border-primary-500"
         />
 
         {/* 方法 */}
@@ -194,7 +194,7 @@ export function RequestPanel() {
         <div className="flex-1 flex flex-col">
           <div className="flex items-center">
             {baseUrl && (
-              <span className="h-8 px-2 text-xs font-mono bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 border-r-0 rounded-l flex items-center text-gray-500 dark:text-gray-400 whitespace-nowrap select-all cursor-default">
+              <span className="h-9 px-2.5 text-xs font-mono bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 border-r-0 rounded-l-lg flex items-center text-gray-500 dark:text-gray-400 whitespace-nowrap select-all cursor-default">
                 {baseUrl.replace(/\/$/, '')}
               </span>
             )}
@@ -210,7 +210,7 @@ export function RequestPanel() {
             />
           </div>
           {fullUrl !== request.url && fullUrl && (
-            <div className="text-[10px] font-mono text-gray-400 dark:text-gray-500 truncate mt-0.5 pl-0.5 select-all">
+            <div className="text-[10px] font-mono text-gray-400 dark:text-gray-500 truncate mt-1 pl-0.5 select-all">
               {baseUrl ? baseUrl.replace(/\/$/, '') + fullUrl : fullUrl}
             </div>
           )}

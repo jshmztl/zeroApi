@@ -1,87 +1,74 @@
 # ZeroApi V2 开发进度记录
 
-> 更新于：2026-08-17（第四次 · Phase 3 完成）
+> 更新于：2026-08-17（第五次 · Phase 4/5 + UI 美化完成）
 > 依据：`ZEROAPI_V2_IMPLEMENTATION.md`
-> 目标跟踪：Phase 1 → goal-c118e0e6 ✅｜Phase 2 → goal-97edf08b ✅｜Phase 3 → goal-1a50f9f1
+> 目标跟踪：Phase 1 ✅｜Phase 2 ✅｜Phase 3 ✅｜Phase 4+5+UI → goal-056f32c8
 
 ---
 
-## ✅ Phase 1（架构重构）— 已完成
-见 git 提交 0ccf61a / a2423bf / 4714d22。
+## ✅ Phase 4（Network Diagnostic）— 本轮完成
 
-## ✅ Phase 2（Local-first）— 已完成
-见 git 提交 1886876（DPAPI Secret、Git-friendly 项目文件、Cookie 管理）。
+### 后端 `network/` 模块（文档 §27-29）
+- `dns.rs`：tokio lookup_host 解析（地址去重 + 计时）
+- `tcp.rs`：TcpStream 连接探测
+- `tls.rs`：rustls + webpki-roots TLS 握手探测（证书主题提取）
+- `diagnostic.rs`：组合诊断 DNS → TCP → TLS(https) → HTTP 探测 + 总耗时；URL 解析（scheme/host/port/path，默认端口 443/80）
+- **Timing 分段集成**（transport/http.rs）：每次请求执行前探测 DNS/TCP/TLS；request_ms（发出→响应头）/ response_ms（响应头→完成）精确分段；响应面板展示 TimingChip
+- 命令：`diagnose_network(target)`
 
-## ✅ Phase 3（API Compatibility）— 本轮完成
+### 前端
+- `pages/DiagnosticsPage.tsx`：诊断页面（目标输入 + 快速示例 + 分段结果卡 + 失败建议列表，文档 §29 形式）
+- 路由 `/diagnostics` + 侧边栏「网络诊断」入口
 
-### 1. OpenAPI 3.0 / 3.1 Import（§23）
-- `service/openapi_service.rs`：YAML/JSON 双格式解析（serde_yml → serde_json::Value）
-- 映射：info.title → 项目｜servers[0].url → 环境 base_url + URL 前缀｜paths+method → Request（name=summary/operationId）｜tags[0] → Collection（无 tag → 默认）｜parameters → query/header｜requestBody.content → Body
-- `import_openapi(content, project_id?)` + `import_openapi_url(url)`（reqwest 抓取）
-- **3 个解析测试通过**（YAML / JSON 3.1 / 指定项目）
+## ✅ Phase 5（质量）— 本轮完成
 
-### 2. cURL Export（§24）
-- `curl.rs::to_curl(request)`：-X / URL(query 合并) / -H / Authorization / -u / --data-raw / --data / -F
-- 命令 `export_curl`；RequestPanel「复制 cURL」按钮
-- **round-trip 测试通过**（导出→再解析，关键信息保留）
+新增测试（全部通过，总计 **20 个**）：
+- `cancel` 注册表 ×2（注册/取消/多请求）
+- `execution_repo` ×2（insert/list/summary + prune 历史裁剪）
+- `environment_repo` ×1（**Secret 安全**：明文不落库、读取解密、级联删除引用）
 
-### 3. Request Replay（§25）
-- 历史列表每项新增重放按钮：加载原请求（Method/URL/Headers/Query/Body/Auth）→ 自动发送 → 产生新 RequestExecution
+## ✅ 界面全面美化 — 本轮完成
 
-### 4. Response Diff（§26）
-- `components/ResponsePanel/DiffModal.tsx`：jsondiffpatch HTML 渲染（A 红 / B 绿）；非 JSON 退化逐行文本对比
-- 历史列表「对比」模式：勾选两条 → DiffModal（标题含状态码）
+### 设计系统升级
+- `tailwind.config.js`：primary 色系全面升级（薄荷绿 → 现代 emerald 色阶 #10B981）
+- `globals.css`：主背景柔和径向渐变、玻璃拟态（glass）、阴影层级（shadow-soft/lift/glow）、细滚动条、选区色、圆角升级
+- `Button/Input/Card/Select`：rounded-lg、soft 阴影、hover 渐变、active 缩放、focus ring
 
-### 5. 前端适配
-- `lib/tauri.ts`：importOpenapi / importOpenapiUrl / exportCurl + OpenApiImportResult 类型
-- `pages/ImportPage.tsx`：OpenAPI 面板（粘贴 YAML/JSON + URL 抓取导入）
-- `store/dataStore.ts`：loadProjects
+### 组件重构
+- **Topbar**：毛玻璃吸顶、版本徽章、环境选择器（勾选态 + 旋转箭头）
+- **Sidebar**：导航 pill + 计数徽章、集合树虚线新建按钮 + 圆角 hover、请求项过渡、底部环境切换毛玻璃
+- **RequestPanel**：方法色、URL 栏圆角统一、base_url 前缀区
+- **ResponsePanel**：状态徽章 + **Timing 分段 Chip**（DNS/TCP/TLS/Req/Body）
+- **DiagnosticsPage**：渐变图标、状态色卡（绿/黄/红）、建议列表
 
 ---
 
-## ✅ 验证结果（Phase 3）
+## ✅ 验证结果
 
 | 验证项 | 结果 |
 |--------|------|
-| cargo test（**15 个**：5 curl + 2 cURL导出 + 3 OpenAPI + 2 DPAPI + 2 迁移 + 1 项目 round-trip） | ✅ 全部通过 |
+| cargo test（**20 个**） | ✅ 全部通过 |
 | cargo check / build | ✅ 通过 |
 | npx tsc -b / npm run build | ✅ 通过 |
-
-**验收达成：**
-- OpenAPI 文档导入后可发送请求 ✅（导入生成项目/集合/请求，server 前缀 + 参数映射）
-- cURL 导出可被 curl 直接执行 ✅（round-trip 测试）
-- 历史 Replay 产生新执行记录 ✅（加载 + 自动发送）
-- JSON Diff 正确展示差异 ✅（jsondiffpatch 渲染 + 文本退化）
+| tauri dev 冒烟启动 | ✅ 无 panic |
 
 ---
 
-## ⏭️ 下一步（文档 roadmap）
-
-### Phase 4：Network Diagnostic
-- [ ] DNS / TCP / TLS 分段 Timing（Timing 结构已就位，补探测实现）
-- [ ] Network Diagnostic 命令 + UI（文档 §27-29：DNS ✓ / TCP ✓ / TLS ⚠ / HTTP ✓ 展示）
-- [ ] Proxy Diagnostic
-
-### Phase 5：质量
-- [ ] 单元/集成测试扩充 · Migration Test · Secret Security Test · 大响应 Test · 取消 Test
+## ⏭️ 剩余（文档 roadmap）
 
 ### Phase 6：发布
-- [ ] Windows Installer / Portable / Auto Update / Release
+- [ ] Windows Installer / Portable / Auto Update / GitHub Release
+- [ ] README 更新 / 截图 / Release Notes
+- [ ] 打包：`npm run tauri:build`
 
----
-
-## 📌 关键设计备忘（Phase 3）
-
-1. **OpenAPI**：tags 分组建集合；servers[0] 生成环境；parameters 的 default/example 填充 query 值；detect_auth 第一版返回 None（避免假 token，用户手动配）
-2. **cURL 导出**：query + apiKey(in query) 合并进 URL；单引号转义 `'\\''`；测试验证 parse(to_curl(x)) 保留关键信息
-3. **Replay**：getRequest(request_id) → dispatch load-request → setTimeout 50ms 后 send()
-4. **Diff**：jsondiffpatch（自带 TS 类型，无需 @types）；`'jsondiffpatch/formatters/html'` 通过 exports 映射到 lib/formatters/html
-5. **jsondiffpatch**：`htmlFormatter.format(delta, a)` 返回 `string | undefined`，需 `?? ''`
+### 后续可选
+- Proxy Diagnostic（第二版）、Route / Certificate Chain
+- OpenAPI URL 导入的鉴权场景
+- WebSocket / GraphQL（文档明确 V2 不做）
 
 ---
 
 ## 📌 会话备忘
 
 - 用户 git 配置：name=jshmztl，email=jshmztl@gmail.com；git 代理 127.0.0.1:7897
-- Rust 1.97.1 / npm 依赖就绪（新增 jsondiffpatch）
-- Phase 3 改动：service/openapi_service.rs（新）、curl.rs（to_curl）、service/mod.rs、commands/{import,request}.rs、lib.rs、src/lib/tauri.ts、src/pages/ImportPage.tsx、src/components/ResponsePanel/DiffModal.tsx（新）、src/components/Layout/Sidebar.tsx、src/components/RequestPanel/RequestPanel.tsx、src/store/dataStore.ts、package.json
+- Phase 4/5/UI 改动：network/（新 5 文件）、transport/http.rs、commands/diagnostic.rs（新）、lib.rs、tailwind.config.js、globals.css、ui/{Button,Input,Card,Select}.tsx、Layout/{Topbar,Sidebar}.tsx、RequestPanel/ResponsePanel、DiagnosticsPage.tsx（新）、App.tsx、tauri.ts、environment_repo/execution_repo 测试

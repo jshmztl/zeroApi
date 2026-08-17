@@ -16,9 +16,9 @@ export function Select({ value, onChange, options, className, size = "md" }: Sel
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className={cn(
-          "appearance-none cursor-pointer bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md",
-          "font-medium focus:outline-none focus:ring-2 focus:ring-primary-500/30",
-          "focus:border-primary-500 dark:focus:border-primary-500 pr-7",
+          "appearance-none cursor-pointer bg-card dark:bg-gray-800 border border-input rounded-lg shadow-soft",
+          "font-medium focus:outline-none focus:ring-2 focus:ring-primary-500/25",
+          "focus:border-primary-500 dark:focus:border-primary-500 pr-7 transition-all",
           size === "md" ? "h-9 pl-3 text-sm" : "h-7 pl-2.5 text-xs"
         )}
         style={{

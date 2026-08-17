@@ -24,6 +24,19 @@ function findHeader(headers: HeaderEntry[], name: string): string | undefined {
   return hit?.value;
 }
 
+/** Timing 分段小徽章 */
+function TimingChip({ label, ms }: { label: string; ms: number }) {
+  return (
+    <span
+      className="inline-flex items-center gap-0.5 px-1.5 h-5 text-[9px] font-mono rounded bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400"
+      title={`${label} 耗时`}
+    >
+      {label}
+      <span className="text-gray-700 dark:text-gray-300 font-semibold">{ms}ms</span>
+    </span>
+  );
+}
+
 export function ResponsePanel() {
   const { response, error, loading, request } = useRequestStore();
   const [tab, setTab] = React.useState<RTab>('body');
@@ -110,26 +123,36 @@ export function ResponsePanel() {
   }
 
   return (
-    <div className="h-full flex flex-col bg-white dark:bg-gray-900">
+    <div className="h-full flex flex-col bg-card dark:bg-gray-900">
       {/* 状态栏 */}
-      <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-800 flex items-center gap-4 text-xs">
+      <div className="px-4 py-2 border-b border-border flex items-center gap-3 text-xs">
         <span
-          className={`px-2 py-0.5 rounded font-mono font-semibold ${colorInfo.bg} ${colorInfo.text}`}
+          className={`px-2.5 py-1 rounded-lg font-mono font-semibold shadow-soft ${colorInfo.bg} ${colorInfo.text}`}
         >
           {response.status} {response.status_text}
         </span>
         <span className="inline-flex items-center gap-1 text-gray-600 dark:text-gray-400">
-          <Clock className="h-3 w-3" />
+          <Clock className="h-3 w-3 text-gray-400" />
           {formatDuration(response.timing?.total_ms ?? 0)}
         </span>
         <span className="inline-flex items-center gap-1 text-gray-600 dark:text-gray-400">
-          <Package className="h-3 w-3" />
+          <Package className="h-3 w-3 text-gray-400" />
           {formatBytes(response.size_bytes)}
         </span>
         <span className="inline-flex items-center gap-1 text-gray-500 dark:text-gray-500 text-[10px]">
           <Globe className="h-3 w-3" />
           {contentType || 'unknown'}
         </span>
+        {/* Timing 分段（Phase 4） */}
+        {response.timing && (
+          <div className="flex items-center gap-1">
+            {response.timing.dns_ms != null && <TimingChip label="DNS" ms={response.timing.dns_ms} />}
+            {response.timing.tcp_ms != null && <TimingChip label="TCP" ms={response.timing.tcp_ms} />}
+            {response.timing.tls_ms != null && <TimingChip label="TLS" ms={response.timing.tls_ms} />}
+            {response.timing.request_ms != null && <TimingChip label="Req" ms={response.timing.request_ms} />}
+            {response.timing.response_ms != null && <TimingChip label="Body" ms={response.timing.response_ms} />}
+          </div>
+        )}
         <div className="flex-1" />
         {!isBinary && (
           <Button

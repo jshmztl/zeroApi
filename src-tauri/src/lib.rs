@@ -14,6 +14,7 @@ mod curl;
 mod db;
 mod domain;
 mod error;
+mod network;
 mod repository;
 mod security;
 mod service;
@@ -47,6 +48,43 @@ pub mod cancel {
     }
 
     pub type SharedRegistry = Arc<CancelRegistry>;
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[tokio::test]
+        async fn test_register_and_cancel() {
+            let reg = CancelRegistry::new();
+            let (tx, rx) = oneshot::channel::<()>();
+            reg.0.lock().await.insert("req-1".into(), tx);
+
+            // 存在则移除并触发信号
+            let found = reg.0.lock().await.remove("req-1");
+            assert!(found.is_some());
+            if let Some(tx) = found {
+                let _ = tx.send(());
+            }
+            // 信号送达（模拟 send_request 的 select 分支）
+            assert!(rx.await.is_ok());
+
+            // 移除后不再存在；重复取消返回 None
+            assert!(!reg.0.lock().await.contains_key("req-1"));
+            assert!(reg.0.lock().await.remove("req-1").is_none());
+        }
+
+        #[tokio::test]
+        async fn test_multiple_requests() {
+            let reg = CancelRegistry::new();
+            for i in 0..5 {
+                let (tx, _) = oneshot::channel::<()>();
+                reg.0.lock().await.insert(format!("req-{}", i), tx);
+            }
+            assert_eq!(reg.0.lock().await.len(), 5);
+            reg.0.lock().await.clear();
+            assert_eq!(reg.0.lock().await.len(), 0);
+        }
+    }
 }
 
 /// 共享应用状态
@@ -163,6 +201,8 @@ pub fn run() {
             commands::settings::app_version,
             commands::settings::get_session_cookies,
             commands::settings::clear_session_cookies,
+            // Network Diagnostic
+            commands::diagnostic::diagnose_network,
         ])
         .run(tauri::generate_context!())
         .expect("启动 Tauri 应用失败");

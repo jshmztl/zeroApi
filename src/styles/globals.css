@@ -4,48 +4,48 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 220 14% 11%;
+    --background: 150 30% 98%;
+    --foreground: 220 20% 10%;
     --card: 0 0% 100%;
-    --card-foreground: 220 14% 11%;
+    --card-foreground: 220 20% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 220 14% 11%;
-    --primary: 153 35% 64%;
+    --popover-foreground: 220 20% 10%;
+    --primary: 158 64% 40%;
     --primary-foreground: 0 0% 100%;
     --secondary: 220 14% 96%;
-    --secondary-foreground: 220 14% 11%;
+    --secondary-foreground: 220 20% 10%;
     --muted: 220 14% 96%;
     --muted-foreground: 220 9% 46%;
-    --accent: 153 35% 94%;
-    --accent-foreground: 153 35% 30%;
+    --accent: 158 64% 95%;
+    --accent-foreground: 158 64% 25%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 153 35% 64%;
-    --radius: 0.5rem;
+    --ring: 158 64% 40%;
+    --radius: 0.625rem;
   }
 
   .dark {
-    --background: 224 25% 8%;
+    --background: 222 28% 7%;
     --foreground: 0 0% 98%;
-    --card: 224 25% 11%;
+    --card: 222 24% 10%;
     --card-foreground: 0 0% 98%;
-    --popover: 224 25% 11%;
+    --popover: 222 24% 10%;
     --popover-foreground: 0 0% 98%;
-    --primary: 153 35% 64%;
-    --primary-foreground: 224 25% 8%;
-    --secondary: 224 20% 16%;
+    --primary: 158 64% 45%;
+    --primary-foreground: 222 28% 7%;
+    --secondary: 222 20% 15%;
     --secondary-foreground: 0 0% 98%;
-    --muted: 224 20% 16%;
+    --muted: 222 20% 15%;
     --muted-foreground: 220 9% 65%;
-    --accent: 153 35% 18%;
-    --accent-foreground: 153 35% 80%;
+    --accent: 158 45% 16%;
+    --accent-foreground: 158 64% 75%;
     --destructive: 0 62% 50%;
     --destructive-foreground: 0 0% 98%;
-    --border: 224 20% 18%;
-    --input: 224 20% 18%;
-    --ring: 153 35% 64%;
+    --border: 222 20% 17%;
+    --input: 222 20% 17%;
+    --ring: 158 64% 45%;
   }
 
   * {
@@ -59,25 +59,34 @@
   }
 
   body {
-    @apply bg-gray-50 dark:bg-gray-950 text-foreground antialiased;
+    @apply bg-background text-foreground antialiased;
     font-family: "Inter", "PingFang SC", "Hiragino Sans GB",
       "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI",
       sans-serif;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    /* 主背景柔和渐变 */
+    background-image:
+      radial-gradient(1200px 600px at 80% -10%, hsl(var(--primary) / 0.06), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, hsl(var(--primary) / 0.05), transparent 55%);
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    @apply bg-primary-500/20 text-foreground;
   }
 
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 9px;
+    height: 9px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    @apply bg-gray-200 dark:bg-gray-700 rounded-full;
+    @apply bg-gray-300/70 dark:bg-gray-700/70 rounded-full border-2 border-transparent bg-clip-padding;
   }
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-gray-300 dark:bg-gray-600;
+    @apply bg-gray-400/80 dark:bg-gray-600/80;
   }
 
   code, pre, .font-mono {
@@ -91,44 +100,63 @@
   }
 
   .glass {
-    background: rgba(255, 255, 255, 0.7);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(12px) saturate(1.4);
+    -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  }
+  .dark .glass {
+    background: rgba(15, 18, 26, 0.72);
+  }
+
+  /* 阴影层级 */
+  .shadow-soft {
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 12px rgb(0 0 0 / 0.06);
+  }
+  .shadow-lift {
+    box-shadow: 0 2px 4px rgb(0 0 0 / 0.05), 0 8px 24px rgb(0 0 0 / 0.09);
+  }
+  .shadow-glow {
+    box-shadow: 0 0 0 1px hsl(var(--primary) / 0.15), 0 4px 20px hsl(var(--primary) / 0.18);
   }
 }
 
 @layer components {
   .z-card {
-    @apply bg-white border border-gray-100 rounded-xl shadow-sm;
+    @apply bg-card border border-border rounded-xl shadow-soft transition-shadow hover:shadow-lift;
   }
   .z-input {
-    @apply h-9 px-3 text-sm bg-white border border-gray-200 rounded-md
-      focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500
-      placeholder:text-gray-400 transition-colors;
+    @apply h-9 px-3 text-sm bg-background border border-input rounded-lg
+      focus:outline-none focus:ring-2 focus:ring-primary-500/25 focus:border-primary-500
+      placeholder:text-muted-foreground/70 transition-all;
   }
   .z-btn {
     @apply inline-flex items-center justify-center gap-1.5 h-9 px-3.5 text-sm
-      font-medium rounded-md transition-all active:scale-[0.98]
-      focus:outline-none focus:ring-2 focus:ring-primary-500/30 disabled:opacity-50
+      font-medium rounded-lg transition-all duration-150 active:scale-[0.97]
+      focus:outline-none focus:ring-2 focus:ring-primary-500/25 disabled:opacity-50
       disabled:pointer-events-none;
   }
   .z-btn-primary {
-    @apply z-btn bg-primary-500 text-white hover:bg-primary-600 shadow-sm;
+    @apply z-btn bg-primary-500 text-white hover:bg-primary-600 shadow-soft;
   }
   .z-btn-ghost {
-    @apply z-btn text-gray-700 hover:bg-gray-100;
+    @apply z-btn text-muted-foreground hover:text-foreground hover:bg-secondary;
   }
   .z-btn-outline {
-    @apply z-btn border border-gray-200 text-gray-700 hover:bg-gray-50;
+    @apply z-btn border border-input bg-card text-foreground hover:bg-secondary hover:border-primary-300;
   }
   .z-btn-danger {
-    @apply z-btn bg-white border border-red-200 text-red-600 hover:bg-red-50;
+    @apply z-btn bg-white dark:bg-gray-900 border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40;
   }
   .z-tab {
-    @apply px-3 h-9 text-sm font-medium text-gray-500 hover:text-gray-900
-      border-b-2 border-transparent transition-colors;
+    @apply px-3 h-9 text-sm font-medium text-muted-foreground hover:text-foreground
+      border-b-2 border-transparent transition-colors relative;
   }
   .z-tab-active {
-    @apply text-primary-700 border-primary-500;
+    @apply text-primary-600 dark:text-primary-400 border-primary-500;
+  }
+
+  /* 方法徽章 */
+  .method-badge {
+    @apply inline-flex items-center justify-center px-1.5 h-5 text-[10px] font-bold rounded-md text-white;
   }
 }

@@ -3,6 +3,7 @@
 //! 组织：Command → Service → Repository → SQLite
 
 pub mod collection;
+pub mod diagnostic;
 pub mod environment;
 pub mod export;
 pub mod history;

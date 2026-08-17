@@ -9,6 +9,8 @@ import {
   ChevronRight,
   ChevronDown,
   RotateCw,
+  Activity,
+  Globe,
 } from 'lucide-react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDataStore } from '@/store/dataStore';
@@ -110,9 +112,9 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="w-64 border-r border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 flex flex-col overflow-hidden">
+    <aside className="w-64 border-r border-border bg-card/60 dark:bg-gray-950/60 backdrop-blur-xl flex flex-col overflow-hidden">
       {/* 导航标签 + 新建 */}
-      <div className="px-2 py-2 flex items-center gap-1 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950">
+      <div className="px-2.5 py-2.5 flex items-center gap-1 border-b border-border">
         {navItems.map((n) => {
           const Icon = n.icon;
           const active = section === n.key;
@@ -121,27 +123,32 @@ export function Sidebar() {
               key={n.key}
               onClick={() => setSection(n.key)}
               className={cn(
-                'flex-1 h-7 rounded-md flex items-center justify-center gap-1 text-xs font-medium transition-colors',
+                'flex-1 h-8 rounded-lg flex items-center justify-center gap-1 text-xs font-medium transition-all duration-150',
                 active
-                  ? 'bg-white dark:bg-gray-800 text-primary-700 dark:text-primary-400 shadow-sm'
-                  : 'text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-white/60 dark:hover:bg-gray-800/60',
+                  ? 'bg-white dark:bg-gray-800 text-primary-600 dark:text-primary-400 shadow-soft'
+                  : 'text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100/70 dark:hover:bg-gray-800/50',
               )}
               title={n.label}
             >
-              <Icon className="h-3 w-3 flex-shrink-0" />
+              <Icon className="h-3.5 w-3.5 flex-shrink-0" />
               <span className="whitespace-nowrap">{n.label}</span>
               {n.count > 0 && (
-                <span className="text-[10px] text-gray-400 dark:text-gray-500">{n.count}</span>
+                <span className={cn(
+                  'text-[10px] px-1 rounded-full',
+                  active ? 'bg-primary-50 dark:bg-primary-900/30 text-primary-600' : 'text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-800',
+                )}>
+                  {n.count}
+                </span>
               )}
             </button>
           );
         })}
         <button
           onClick={handleNewRequest}
-          className="h-7 w-7 inline-flex items-center justify-center rounded-md hover:bg-white dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-primary-600 flex-shrink-0"
+          className="h-8 w-8 inline-flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-primary-600 transition-all flex-shrink-0"
           title="新建空白请求 (Ctrl+N)"
         >
-          <Plus className="h-3.5 w-3.5" />
+          <Plus className="h-4 w-4" />
         </button>
       </div>
 
@@ -219,18 +226,24 @@ export function Sidebar() {
       </div>
 
       {/* 底部：环境切换 + 导入入口 */}
-      <div className="px-2 py-2 border-t border-gray-200 dark:border-gray-800 space-y-1.5">
+      <div className="px-2 py-2 border-t border-border space-y-1.5">
         <div className="relative">
           <button
             onClick={() => setEnvDropdown(!envDropdown)}
-            className="w-full h-7 px-2 text-xs rounded flex items-center justify-between text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-800"
+            className={cn(
+              "w-full h-8 px-2.5 text-xs rounded-lg flex items-center justify-between transition-colors",
+              envDropdown
+                ? "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 shadow-soft"
+                : "text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-800/70",
+            )}
           >
-            <span className="truncate">
+            <span className="truncate flex items-center gap-1.5">
+              <Globe className="h-3 w-3 text-primary-500 flex-shrink-0" />
               {activeEnvId
                 ? environments.find((e) => e.id === activeEnvId)?.name || '选择环境'
                 : '选择环境'}
             </span>
-            <span className="text-[10px] text-gray-400 ml-1">▼</span>
+            <ChevronDown className={cn("h-3 w-3 text-gray-400 transition-transform", envDropdown && "rotate-180")} />
           </button>
           {envDropdown && (
             <div className="absolute bottom-full left-0 right-0 mb-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-20 max-h-40 overflow-auto">
@@ -301,9 +314,15 @@ export function Sidebar() {
         </div>
         <Link
           to="/import"
-          className="w-full h-7 px-2 inline-flex items-center justify-center gap-1 text-xs text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-800 rounded"
+          className="w-full h-8 px-2.5 inline-flex items-center justify-center gap-1 text-xs text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-800 rounded-lg transition-colors"
         >
           <Upload className="h-3 w-3" /> 导入 cURL / JSON
+        </Link>
+        <Link
+          to="/diagnostics"
+          className="w-full h-8 px-2.5 inline-flex items-center justify-center gap-1 text-xs text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-800 rounded-lg transition-colors"
+        >
+          <Activity className="h-3 w-3" /> 网络诊断
         </Link>
       </div>
 
@@ -349,9 +368,9 @@ function TreeCollectionsList({
     <div className="space-y-0.5">
       <button
         onClick={onNew}
-        className="w-full h-7 px-2 text-xs text-primary-700 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded inline-flex items-center gap-1 justify-center mb-1"
+        className="w-full h-8 px-2 text-xs text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg inline-flex items-center gap-1 justify-center mb-1 border border-dashed border-primary-200 dark:border-primary-800/60 hover:border-primary-400 transition-colors"
       >
-        <Plus className="h-3 w-3" /> 新建集合
+        <Plus className="h-3.5 w-3.5" /> 新建集合
       </button>
       {items.length === 0 ? (
         <EmptyState tip="暂无集合" />
@@ -362,10 +381,10 @@ function TreeCollectionsList({
           return (
             <div key={c.id}>
               {/* 一级：集合名 */}
-              <div className="group flex items-center rounded hover:bg-white dark:hover:bg-gray-800 cursor-pointer">
+              <div className="group flex items-center rounded-lg hover:bg-gray-100/70 dark:hover:bg-gray-800/60 transition-colors">
                 <button
                   onClick={() => onToggle(c.id)}
-                  className="p-0.5 text-gray-400 hover:text-gray-600 flex-shrink-0"
+                  className="p-1 text-gray-400 hover:text-gray-600 flex-shrink-0"
                 >
                   {isOpen ? (
                     <ChevronDown className="h-3 w-3" />
@@ -382,7 +401,7 @@ function TreeCollectionsList({
                       {c.name}
                     </div>
                   </div>
-                  <span className="text-[10px] text-gray-400 dark:text-gray-500 flex-shrink-0">
+                  <span className="text-[10px] px-1.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 flex-shrink-0">
                     {children.length}
                   </span>
                 </Link>
@@ -392,7 +411,7 @@ function TreeCollectionsList({
                     e.stopPropagation();
                     onRemove(c.id);
                   }}
-                  className="opacity-0 group-hover:opacity-100 text-gray-400 dark:text-gray-500 hover:text-red-500 p-0.5 flex-shrink-0 mr-1"
+                  className="opacity-0 group-hover:opacity-100 text-gray-400 dark:text-gray-500 hover:text-red-500 p-1 flex-shrink-0 mr-1 transition-opacity"
                 >
                   <Trash2 className="h-3 w-3" />
                 </button>

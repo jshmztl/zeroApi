@@ -109,6 +109,10 @@ export const tauri = {
   clearAllData: () => invoke<void>("clear_all_data"),
   appVersion: () => invoke<string>("app_version"),
 
+  // ---- Network Diagnostic ----
+  diagnoseNetwork: (target: string) =>
+    invoke<unknown>("diagnose_network", { target }),
+
   // ---- Cookie Session（按 Project 隔离） ----
   getSessionCookies: (projectId: string, url: string) =>
     invoke<string>("get_session_cookies", { projectId, url }),

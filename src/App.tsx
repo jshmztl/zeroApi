@@ -5,6 +5,7 @@ import { HomePage } from "@/pages/HomePage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { ImportPage } from "@/pages/ImportPage";
 import { CollectionPage } from "@/pages/CollectionPage";
+import { DiagnosticsPage } from "@/pages/DiagnosticsPage";
 import { useSettingsStore } from "@/store/settingsStore";
 import { ToastProvider } from "@/components/ui/Toast";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -37,6 +38,7 @@ export default function App() {
               <Route path="/" element={<HomePage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/import" element={<ImportPage />} />
+              <Route path="/diagnostics" element={<DiagnosticsPage />} />
               <Route path="/collection/:id" element={<CollectionPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

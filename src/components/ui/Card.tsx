@@ -9,7 +9,7 @@ export function Card({
   return (
     <div
       className={cn(
-        "bg-white border border-gray-100 rounded-xl shadow-sm",
+        "bg-card border border-border rounded-xl shadow-soft transition-shadow hover:shadow-lift",
         className
       )}
       {...rest}
