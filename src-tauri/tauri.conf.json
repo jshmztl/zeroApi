@@ -1,7 +1,7 @@
-{
+﻿{
   "$schema": "https://schema.tauri.app/config/2.0.0",
   "productName": "ZeroApi",
-  "version": "1.1.3",
+  "version": "1.2.0",
   "identifier": "com.zeroapi.app",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "ZeroApi · 零登录 零云端 零 CORS",
+        "title": "ZeroApi 路 闆剁櫥褰?闆朵簯绔?闆?CORS",
         "width": 1280,
         "height": 800,
         "minWidth": 1024,
@@ -44,10 +44,10 @@
       "icons/icon.ico"
     ],
     "category": "DeveloperTool",
-    "shortDescription": "零登录 零云端 零 CORS 的 API 调试工具",
-    "longDescription": "ZeroApi 是一款基于 Tauri + Rust 构建的轻量级 API 调试工具,完全本地化运行,无需登录、无需云端、无 CORS 限制。支持 HTTP 七种方法、cURL 导入、环境变量、收藏与历史记录,以及应用内自动更新。",
+    "shortDescription": "闆剁櫥褰?闆朵簯绔?闆?CORS 鐨?API 璋冭瘯宸ュ叿",
+    "longDescription": "ZeroApi 鏄竴娆惧熀浜?Tauri + Rust 鏋勫缓鐨勮交閲忕骇 API 璋冭瘯宸ュ叿,瀹屽叏鏈湴鍖栬繍琛?鏃犻渶鐧诲綍銆佹棤闇€浜戠銆佹棤 CORS 闄愬埗銆傛敮鎸?HTTP 涓冪鏂规硶銆乧URL 瀵煎叆銆佺幆澧冨彉閲忋€佹敹钘忎笌鍘嗗彶璁板綍,浠ュ強搴旂敤鍐呰嚜鍔ㄦ洿鏂般€?,
     "publisher": "ZeroApi",
-    "copyright": "Copyright © 2026 ZeroApi",
+    "copyright": "Copyright 漏 2026 ZeroApi",
     "homepage": "https://github.com/jshmztl/zeroApi",
     "windows": {
       "wix": {
