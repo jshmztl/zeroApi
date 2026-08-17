@@ -8,6 +8,7 @@ pub mod environment_service;
 pub mod export_service;
 pub mod history_service;
 pub mod import_service;
+pub mod project_file;
 pub mod project_service;
 pub mod request_service;
 pub mod settings_service;
@@ -25,6 +26,7 @@ pub use environment_service::*;
 pub use export_service::*;
 pub use history_service::*;
 pub use import_service::*;
+pub use project_file::*;
 pub use project_service::*;
 pub use request_service::*;
 pub use settings_service::*;
@@ -34,6 +36,7 @@ pub use settings_service::*;
 pub struct Services {
     pub request: Arc<RequestService>,
     pub project: ProjectService,
+    pub project_file: ProjectFileService,
     pub collection: CollectionService,
     pub environment: EnvironmentService,
     pub history: HistoryService,
@@ -60,6 +63,7 @@ impl Services {
                 responses_dir,
             )),
             project: ProjectService::new(repos),
+            project_file: ProjectFileService::new(repos),
             collection: CollectionService::new(repos),
             environment: EnvironmentService::new(repos),
             history: HistoryService::new(repos),

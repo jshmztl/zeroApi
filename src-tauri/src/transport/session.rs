@@ -6,6 +6,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use reqwest::cookie::CookieStore;
 use tokio::sync::Mutex;
 
 use crate::transport::HttpTransport;
@@ -51,6 +52,29 @@ impl SessionManager {
     /// 清空全部会话
     pub async fn clear_all(&self) {
         self.sessions.lock().await.clear();
+    }
+
+    /// 查询指定 URL 域下的 Cookie（返回 "k=v; k2=v2"，无则空串）
+    pub async fn cookies_for(&self, project_id: &str, url: &str) -> String {
+        let map = self.sessions.lock().await;
+        match map.get(project_id) {
+            Some(s) => {
+                if let Ok(u) = url::Url::parse(url) {
+                    s.jar
+                        .cookies(&u)
+                        .map(|v| v.to_str().unwrap_or("").to_string())
+                        .unwrap_or_default()
+                } else {
+                    String::new()
+                }
+            }
+            None => String::new(),
+        }
+    }
+
+    /// 会话数量（诊断用）
+    pub async fn count(&self) -> usize {
+        self.sessions.lock().await.len()
     }
 }
 

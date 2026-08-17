@@ -39,3 +39,22 @@ pub async fn clear_all_data(state: State<'_, AppState>) -> AppResult<()> {
 pub fn app_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }
+
+// ---------- Cookie Session 管理（文档 §31） ----------
+
+/// 查询指定项目 + URL 域下的 Cookie
+#[tauri::command]
+pub async fn get_session_cookies(
+    state: State<'_, AppState>,
+    project_id: String,
+    url: String,
+) -> AppResult<String> {
+    Ok(state.sessions.cookies_for(&project_id, &url).await)
+}
+
+/// 清空指定项目的 Cookie 会话
+#[tauri::command]
+pub async fn clear_session_cookies(state: State<'_, AppState>, project_id: String) -> AppResult<()> {
+    state.sessions.clear(&project_id).await;
+    Ok(())
+}

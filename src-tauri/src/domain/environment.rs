@@ -30,6 +30,9 @@ pub struct EnvironmentVariable {
     pub kind: VariableKind,
     #[serde(default = "default_true")]
     pub enabled: bool,
+    /// Secret 引用（内部使用，指向 env_secret_refs 表；不导出到项目文件）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub secret_ref: Option<String>,
 }
 
 impl EnvironmentVariable {
@@ -39,6 +42,7 @@ impl EnvironmentVariable {
             value: value.into(),
             kind: VariableKind::Plain,
             enabled: true,
+            secret_ref: None,
         }
     }
 
@@ -48,6 +52,7 @@ impl EnvironmentVariable {
             value: value.into(),
             kind: VariableKind::Secret,
             enabled: true,
+            secret_ref: None,
         }
     }
 }

@@ -15,6 +15,7 @@ mod db;
 mod domain;
 mod error;
 mod repository;
+mod security;
 mod service;
 mod transport;
 
@@ -128,6 +129,8 @@ pub fn run() {
             commands::project::get_project,
             commands::project::save_project,
             commands::project::delete_project,
+            commands::project::export_project,
+            commands::project::import_project,
             // Collection / Folder
             commands::collection::list_collections,
             commands::collection::get_collection,
@@ -155,6 +158,8 @@ pub fn run() {
             commands::settings::save_settings,
             commands::settings::clear_all_data,
             commands::settings::app_version,
+            commands::settings::get_session_cookies,
+            commands::settings::clear_session_cookies,
         ])
         .run(tauri::generate_context!())
         .expect("启动 Tauri 应用失败");

@@ -53,6 +53,12 @@ export const tauri = {
     invoke<string>("save_project", { project }),
   deleteProject: (id: string) =>
     invoke<void>("delete_project", { id }),
+  /** 导出项目到目录（Git-friendly 文件格式） */
+  exportProject: (projectId: string, dir: string) =>
+    invoke<void>("export_project", { projectId, dir }),
+  /** 从目录导入项目，返回新项目 id */
+  importProject: (dir: string) =>
+    invoke<string>("import_project", { dir }),
 
   // ---- Collection / Folder ----
   listCollections: (projectId?: string) =>
@@ -93,6 +99,12 @@ export const tauri = {
 
   clearAllData: () => invoke<void>("clear_all_data"),
   appVersion: () => invoke<string>("app_version"),
+
+  // ---- Cookie Session（按 Project 隔离） ----
+  getSessionCookies: (projectId: string, url: string) =>
+    invoke<string>("get_session_cookies", { projectId, url }),
+  clearSessionCookies: (projectId: string) =>
+    invoke<void>("clear_session_cookies", { projectId }),
 };
 
 export type { ExportPayload };
