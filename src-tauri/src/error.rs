@@ -21,6 +21,9 @@ pub enum AppError {
     #[error("请求头错误: {0}")]
     Header(#[from] reqwest::header::InvalidHeaderValue),
 
+    #[error("网络错误: {0}")]
+    Network(#[from] crate::domain::NetworkError),
+
     #[error("cURL 解析错误: {0}")]
     Curl(String),
 

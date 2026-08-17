@@ -1,27 +1,36 @@
-//! ZeroApi - Tauri 后端入口
+//! ZeroApi - Tauri 后端入口（V2）
 //!
-//! 模块组织：
-//! - `models`  数据结构定义
-//! - `db`      SQLite 持久化
-//! - `http`    reqwest HTTP 客户端
-//! - `curl`    cURL 命令解析
-//! - `commands` Tauri IPC 命令
+//! 模块组织（见 ZEROAPI_V2_IMPLEMENTATION.md §2 / §12-16）：
+//! - `domain`     领域模型（V2）
+//! - `db`         SQLite 连接 + 版本化 Migration
+//! - `repository` 持久化层（只负责 SQL）
+//! - `transport`  RequestCompiler + HttpTransport + Cookie Session
+//! - `service`    业务编排层
+//! - `commands`   Tauri IPC 命令（按领域拆分）
+//! - `curl`       cURL 命令解析
 
 mod commands;
 mod curl;
 mod db;
+mod domain;
 mod error;
-mod http;
-mod models;
+mod repository;
+mod service;
+mod transport;
 
+use std::path::PathBuf;
 use std::sync::Arc;
+
 use tauri::Manager;
 
 use crate::db::Database;
+use crate::repository::Repos;
+use crate::service::Services;
+use crate::transport::{HttpTransport, SessionManager};
 
 pub use error::{AppError, AppResult};
 
-/// 请求取消注册表
+/// 请求取消注册表（文档 §30）
 pub mod cancel {
     use std::collections::HashMap;
     use std::sync::Arc;
@@ -42,7 +51,9 @@ pub mod cancel {
 /// 共享应用状态
 pub struct AppState {
     pub db: Arc<Database>,
-    pub http_client: Arc<reqwest::Client>,
+    pub services: Services,
+    pub transport: Arc<HttpTransport>,
+    pub sessions: Arc<SessionManager>,
     pub cancel_registry: cancel::SharedRegistry,
 }
 
@@ -65,52 +76,85 @@ pub fn run() {
             std::fs::create_dir_all(&app_dir)?;
             log::info!("应用数据目录: {:?}", app_dir);
 
-            let db = Database::new(app_dir.join("zeroapi.db"))?;
+            let db = Arc::new(Database::new(app_dir.join("zeroapi.db"))?);
             db.migrate()?;
 
-            // 全局 HTTP 客户端
-            let http_client = reqwest::Client::builder()
-                .user_agent("ZeroApi/1.0")
-                .cookie_store(true)
-                .danger_accept_invalid_certs(false)
-                .build()
-                .expect("初始化 HTTP 客户端失败");
+            let repos = Repos::new(db.clone());
+            let settings = repos.settings.get().unwrap_or_default();
+
+            // HTTP 传输层（不含 Cookie Store，Cookie 按 Project Session 隔离）
+            let transport = Arc::new(HttpTransport::new(&settings)?);
+
+            // Cookie Session 管理器（文档 §31）
+            let sessions = Arc::new(SessionManager::new());
+
+            // 大响应保存目录
+            let responses_dir: PathBuf = app_dir.join("responses");
+
+            let cancel_registry = Arc::new(cancel::CancelRegistry::new());
+
+            let services = Services::new(
+                db.clone(),
+                &repos,
+                transport.clone(),
+                sessions.clone(),
+                cancel_registry.clone(),
+                responses_dir,
+            );
 
             app.manage(AppState {
-                db: Arc::new(db),
-                http_client: Arc::new(http_client),
-                cancel_registry: Arc::new(cancel::CancelRegistry::new()),
+                db,
+                services,
+                transport,
+                sessions,
+                cancel_registry,
             });
 
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            commands::send_request,
-            commands::cancel_request,
-            commands::save_request,
-            commands::delete_request,
-            commands::list_history,
-            commands::clear_history,
-            commands::delete_history,
-            commands::list_favorites,
-            commands::add_favorite,
-            commands::remove_favorite,
-            commands::list_collections,
-            commands::save_collection,
-            commands::update_collection,
-            commands::delete_collection,
-            commands::save_saved_request,
-            commands::list_saved_requests,
-            commands::list_environments,
-            commands::save_environment,
-            commands::delete_environment,
-            commands::import_curl,
-            commands::export_json,
-            commands::import_json,
-            commands::get_settings,
-            commands::save_settings,
-            commands::clear_all_data,
-            commands::app_version,
+            // Request
+            commands::request::send_request,
+            commands::request::cancel_request,
+            commands::request::save_request,
+            commands::request::delete_request,
+            commands::request::list_requests,
+            commands::request::get_request,
+            commands::request::add_favorite,
+            commands::request::remove_favorite,
+            commands::request::list_favorites,
+            // Project
+            commands::project::list_projects,
+            commands::project::get_project,
+            commands::project::save_project,
+            commands::project::delete_project,
+            // Collection / Folder
+            commands::collection::list_collections,
+            commands::collection::get_collection,
+            commands::collection::save_collection,
+            commands::collection::delete_collection,
+            commands::collection::list_folders,
+            commands::collection::save_folder,
+            commands::collection::delete_folder,
+            // Environment
+            commands::environment::list_environments,
+            commands::environment::get_environment,
+            commands::environment::save_environment,
+            commands::environment::delete_environment,
+            // History
+            commands::history::list_history,
+            commands::history::get_execution,
+            commands::history::delete_history,
+            commands::history::clear_history,
+            // Import / Export
+            commands::import::import_curl,
+            commands::import::import_json,
+            commands::export::export_json,
+            // Settings
+            commands::settings::get_settings,
+            commands::settings::save_settings,
+            commands::settings::clear_all_data,
+            commands::settings::app_version,
         ])
         .run(tauri::generate_context!())
         .expect("启动 Tauri 应用失败");

@@ -1,4 +1,4 @@
-//! cURL 命令解析器
+//! cURL 命令解析器（V2 模型）
 //!
 //! 支持：
 //! - `-X METHOD` / `--request`
@@ -10,13 +10,11 @@
 //! - `-F "key=val"` / `--form` (multipart)
 //! - `--url` / 末尾位置参数
 //! - `-G` / `--get` (将 -d 数据并入 query)
-//! - `-k` / `--insecure`
-//! - `--compressed`
 //! - 引号(单/双)、反斜杠转义
 //!
 //! 不支持：配置文件(-K)、复杂 globbing、变量展开
 
-use crate::models::*;
+use crate::domain::*;
 use crate::AppError;
 use crate::AppResult;
 
@@ -38,7 +36,7 @@ pub fn parse(input: &str) -> AppResult<Request> {
 
     let mut method: Option<String> = None;
     let mut url: Option<String> = None;
-    let mut headers: Vec<KeyValue> = Vec::new();
+    let mut headers: Vec<HeaderEntry> = Vec::new();
     let mut data_parts: Vec<String> = Vec::new();
     let mut url_encoded_parts: Vec<KeyValue> = Vec::new();
     let mut form_parts: Vec<KeyValue> = Vec::new();
@@ -63,7 +61,7 @@ pub fn parse(input: &str) -> AppResult<Request> {
                 i += 1;
                 if i < tokens.len() {
                     if let Some((k, v)) = split_header(&tokens[i]) {
-                        headers.push(KeyValue { key: k, value: v, enabled: true, description: None });
+                        headers.push(HeaderEntry::new(k, v));
                     }
                 }
             }
@@ -84,9 +82,9 @@ pub fn parse(input: &str) -> AppResult<Request> {
                     if let Some(eq) = tokens[i].find('=') {
                         let k = tokens[i][..eq].to_string();
                         let v = tokens[i][eq + 1..].to_string();
-                        url_encoded_parts.push(KeyValue { key: k, value: v, enabled: true, description: None });
+                        url_encoded_parts.push(KeyValue::new(k, v));
                     } else {
-                        url_encoded_parts.push(KeyValue { key: tokens[i].clone(), value: "".into(), enabled: true, description: None });
+                        url_encoded_parts.push(KeyValue::new(tokens[i].clone(), ""));
                     }
                     if body_type == "none" {
                         body_type = "urlencoded";
@@ -98,7 +96,7 @@ pub fn parse(input: &str) -> AppResult<Request> {
                 i += 1;
                 if i < tokens.len() {
                     if let Some((k, v)) = split_first_eq(&tokens[i]) {
-                        form_parts.push(KeyValue { key: k, value: v, enabled: true, description: None });
+                        form_parts.push(KeyValue::new(k, v));
                     }
                     body_type = "formdata";
                 }
@@ -132,17 +130,7 @@ pub fn parse(input: &str) -> AppResult<Request> {
                     url = Some(tokens[i].clone());
                 }
             }
-            // ----- 短选项串 -----
-            s if s.starts_with('-') && s.len() > 1 && !s.starts_with("--") => {
-                // 例如 -L, -k, -I, -i, --silent 等
-                // 解析组合短选项:每个字符一个 flag
-                for c in s.chars().skip(1) {
-                    match c {
-                        // 跳过值
-                        _ => {}
-                    }
-                }
-            }
+            // ----- 未知 flag（跳过，如 -L -k -i --compressed）-----
             _ => {
                 // 位置参数 -> URL(取第一个遇到的非 flag)
                 if url.is_none() && !t.starts_with('-') {
@@ -158,31 +146,29 @@ pub fn parse(input: &str) -> AppResult<Request> {
 
     // 把 cookies 合并到 Cookie 头
     if !cookies.is_empty() {
-        headers.push(KeyValue {
-            key: "Cookie".to_string(),
-            value: cookies.join("; "),
-            enabled: true,
-            description: None,
-        });
+        headers.push(HeaderEntry::new("Cookie", cookies.join("; ")));
     }
 
     // Basic auth
-    let auth = if let Some((u, p)) = basic_auth {
-        Auth::Basic { username: u, password: p }
-    } else {
-        Auth::None
-    };
+    let auth = basic_auth.map(|(u, p)| AuthConfig::Basic {
+        username: u,
+        password: p,
+    });
 
     // 决定最终 method
-    let final_method = if let Some(m) = method {
-        m
-    } else if use_get {
-        "GET".to_string()
-    } else if body_type == "none" {
-        "GET".to_string()
-    } else {
-        "POST".to_string()
-    };
+    let method_str = method
+        .or_else(|| {
+            if use_get {
+                Some("GET".to_string())
+            } else if body_type == "none" {
+                Some("GET".to_string())
+            } else {
+                Some("POST".to_string())
+            }
+        })
+        .unwrap_or_else(|| "GET".to_string());
+    let http_method = HttpMethod::from_str(&method_str)
+        .ok_or_else(|| AppError::Curl(format!("未知 HTTP 方法: {}", method_str)))?;
 
     // 处理 body 类型
     let body = match body_type {
@@ -191,7 +177,7 @@ pub fn parse(input: &str) -> AppResult<Request> {
             // 智能判断 content type
             let ct = headers
                 .iter()
-                .find(|h| h.key.eq_ignore_ascii_case("Content-Type"))
+                .find(|h| h.name.eq_ignore_ascii_case("Content-Type"))
                 .map(|h| h.value.clone());
             let default_ct = if content.trim_start().starts_with('{')
                 || content.trim_start().starts_with('[')
@@ -200,10 +186,10 @@ pub fn parse(input: &str) -> AppResult<Request> {
             } else {
                 "application/x-www-form-urlencoded"
             };
-            Body::Raw {
+            Some(RequestBody::Raw {
                 content_type: ct.unwrap_or_else(|| default_ct.to_string()),
                 content,
-            }
+            })
         }
         "urlencoded" => {
             // 合并 -d + --data-urlencode
@@ -212,21 +198,14 @@ pub fn parse(input: &str) -> AppResult<Request> {
                     url_encoded_parts.push(kv);
                 }
             }
-            Body::UrlEncoded { items: url_encoded_parts }
+            Some(RequestBody::UrlEncoded {
+                items: url_encoded_parts,
+            })
         }
-        "formdata" => Body::FormData { items: form_parts },
-        _ => {
-            // 如果 -G,把 -d 数据并入 query
-            if use_get && !data_parts.is_empty() {
-                let joined = data_parts.join("&");
-                for _kv in parse_kv_string(&joined) {
-                    headers.retain(|h| !h.key.eq_ignore_ascii_case("Content-Type"));
-                    // 这部分会作为 query 拼到 URL,这里用 headers 暂时存一下
-                    // 实际上应该走 params,我们在外层处理
-                }
-            }
-            Body::None
-        }
+        "formdata" => Some(RequestBody::FormData {
+            items: form_parts,
+        }),
+        _ => None,
     };
 
     // 如果 -G 且有 -d,把它们转成 query 参数
@@ -238,25 +217,28 @@ pub fn parse(input: &str) -> AppResult<Request> {
     }
 
     // 移除 GET 请求里残留的 Content-Length/Content-Type 头
-    if final_method == "GET" {
+    if method_str == "GET" {
         headers.retain(|h| {
-            !(h.key.eq_ignore_ascii_case("Content-Length")
-                || h.key.eq_ignore_ascii_case("Content-Type"))
+            !(h.name.eq_ignore_ascii_case("Content-Length")
+                || h.name.eq_ignore_ascii_case("Content-Type"))
         });
     }
 
+    let now = chrono::Utc::now().timestamp_millis();
     Ok(Request {
         id: String::new(),
+        collection_id: String::new(),
+        folder_id: None,
         name: String::new(),
-        method: final_method,
+        method: http_method,
         url,
-        params: extra_params,
         headers,
+        query: extra_params,
         body,
         auth,
-        collection_id: None,
-        status: RequestStatus::default(),
-        last_response: None,
+        sort_order: 0,
+        created_at: now,
+        updated_at: now,
     })
 }
 
@@ -332,7 +314,7 @@ fn parse_kv_string(s: &str) -> Vec<KeyValue> {
                 None => (p.to_string(), String::new()),
             };
             let v = urlencoding_decode(&v);
-            Some(KeyValue { key: urlencoding_decode(&k), value: v, enabled: true, description: None })
+            Some(KeyValue::new(urlencoding_decode(&k), v))
         })
         .collect()
 }
@@ -350,23 +332,23 @@ mod tests {
     #[test]
     fn test_basic_get() {
         let r = parse("curl https://api.example.com/users").unwrap();
-        assert_eq!(r.method, "GET");
+        assert_eq!(r.method.as_str(), "GET");
         assert_eq!(r.url, "https://api.example.com/users");
     }
 
     #[test]
     fn test_post_with_header_and_body() {
         let r = parse(r#"curl -X POST -H "Content-Type: application/json" -d '{"name":"Alice"}' https://api.example.com/users"#).unwrap();
-        assert_eq!(r.method, "POST");
+        assert_eq!(r.method.as_str(), "POST");
         assert_eq!(r.url, "https://api.example.com/users");
-        assert!(r.headers.iter().any(|h| h.key == "Content-Type"));
+        assert!(r.headers.iter().any(|h| h.name == "Content-Type"));
     }
 
     #[test]
     fn test_basic_auth() {
         let r = parse("curl -u admin:secret https://api.example.com").unwrap();
         match r.auth {
-            Auth::Basic { username, password } => {
+            Some(AuthConfig::Basic { username, password }) => {
                 assert_eq!(username, "admin");
                 assert_eq!(password, "secret");
             }
@@ -377,7 +359,13 @@ mod tests {
     #[test]
     fn test_data_with_get() {
         let r = parse("curl -G -d \"a=1&b=2\" https://api.example.com").unwrap();
-        assert_eq!(r.method, "GET");
-        assert_eq!(r.params.len(), 2);
+        assert_eq!(r.method.as_str(), "GET");
+        assert_eq!(r.query.len(), 2);
+    }
+
+    #[test]
+    fn test_cookie_header() {
+        let r = parse("curl -b \"sid=abc\" https://api.example.com").unwrap();
+        assert!(r.headers.iter().any(|h| h.name == "Cookie" && h.value == "sid=abc"));
     }
 }
