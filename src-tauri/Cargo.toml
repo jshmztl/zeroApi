@@ -1,7 +1,7 @@
 [package]
 name = "zeroapi"
 version = "1.2.0"
-description = "ZeroApi - 闆剁櫥褰?闆朵簯绔?闆?CORS 鐨?API 璋冭瘯宸ュ叿"
+description = "ZeroApi - 零登录 零云端 零 CORS 的 API 调试工具"
 authors = ["ZeroApi"]
 edition = "2021"
 rust-version = "1.77"
