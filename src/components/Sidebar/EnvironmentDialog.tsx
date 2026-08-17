@@ -3,10 +3,11 @@ import { tauri } from '@/lib/tauri';
 import { toast } from '@/components/ui/Toast';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { X, Plus, Check } from 'lucide-react';
+import { X, Plus, Check, Eye, EyeOff } from 'lucide-react';
 import { useDataStore } from '@/store/dataStore';
 import { nanoid } from '@/lib/nanoid';
-import type { Environment, KeyValue } from '@/types';
+import type { Environment, EnvironmentVariable } from '@/types';
+import { cn } from '@/lib/utils';
 
 export function EnvironmentDialog({
   env,
@@ -18,7 +19,8 @@ export function EnvironmentDialog({
   const { loadEnvironments } = useDataStore();
   const [name, setName] = React.useState(env?.name || '');
   const [baseUrl, setBaseUrl] = React.useState(env?.base_url || '');
-  const [vars, setVars] = React.useState<KeyValue[]>(env?.vars || []);
+  const [vars, setVars] = React.useState<EnvironmentVariable[]>(env?.vars || []);
+  const [showSecrets, setShowSecrets] = React.useState(false);
 
   React.useEffect(() => {
     setName(env?.name || '');
@@ -27,9 +29,9 @@ export function EnvironmentDialog({
   }, [env]);
 
   const addVar = () => {
-    setVars([...vars, { key: '', value: '', enabled: true }]);
+    setVars([...vars, { name: '', value: '', kind: 'plain', enabled: true }]);
   };
-  const updateVar = (i: number, patch: Partial<KeyValue>) => {
+  const updateVar = (i: number, patch: Partial<EnvironmentVariable>) => {
     setVars(vars.map((v, idx) => (idx === i ? { ...v, ...patch } : v)));
   };
   const removeVar = (i: number) => {
@@ -43,9 +45,10 @@ export function EnvironmentDialog({
     }
     const newEnv: Environment = {
       id: env?.id || nanoid(),
+      project_id: env?.project_id ?? null,
       name: name.trim(),
       base_url: baseUrl.trim(),
-      vars: vars.filter((v) => v.key.trim()),
+      vars: vars.filter((v) => v.name.trim()),
       active: env?.active || false,
     };
     try {
@@ -60,7 +63,7 @@ export function EnvironmentDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 animate-fade-in">
-      <div className="bg-white rounded-xl shadow-xl w-[520px] max-h-[80vh] flex flex-col">
+      <div className="bg-white rounded-xl shadow-xl w-[560px] max-h-[80vh] flex flex-col">
         <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
           <h2 className="font-semibold text-base">{env ? '编辑环境' : '新建环境'}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700">
@@ -95,13 +98,23 @@ export function EnvironmentDialog({
 
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs font-medium text-gray-600">变量 (key = value)</label>
-              <button
-                onClick={addVar}
-                className="text-xs text-primary-600 hover:text-primary-700 inline-flex items-center gap-1"
-              >
-                <Plus className="h-3 w-3" /> 添加
-              </button>
+              <label className="text-xs font-medium text-gray-600">变量 (name = value)</label>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowSecrets(!showSecrets)}
+                  className="text-[10px] text-gray-400 hover:text-primary-600 inline-flex items-center gap-0.5"
+                  title="显示/隐藏 Secret 值"
+                >
+                  {showSecrets ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                  显示 Secret
+                </button>
+                <button
+                  onClick={addVar}
+                  className="text-xs text-primary-600 hover:text-primary-700 inline-flex items-center gap-1"
+                >
+                  <Plus className="h-3 w-3" /> 添加
+                </button>
+              </div>
             </div>
             <div className="space-y-1.5 border border-gray-100 rounded-md p-2 bg-gray-50 max-h-64 overflow-auto">
               {vars.length === 0 && (
@@ -118,17 +131,33 @@ export function EnvironmentDialog({
                     className="rounded"
                   />
                   <Input
-                    value={v.key}
-                    onChange={(e) => updateVar(i, { key: e.target.value })}
-                    placeholder="KEY"
+                    value={v.name}
+                    onChange={(e) => updateVar(i, { name: e.target.value })}
+                    placeholder="NAME"
                     className="flex-1 font-mono text-xs"
                   />
                   <Input
+                    type={v.kind === 'secret' && !showSecrets ? 'password' : 'text'}
                     value={v.value}
                     onChange={(e) => updateVar(i, { value: e.target.value })}
                     placeholder="value"
                     className="flex-1 font-mono text-xs"
                   />
+                  {/* Secret 类型切换 */}
+                  <button
+                    onClick={() =>
+                      updateVar(i, { kind: v.kind === 'secret' ? 'plain' : 'secret' })
+                    }
+                    title={v.kind === 'secret' ? 'Secret 变量（不导出/不进 Git）' : '切换为 Secret 变量'}
+                    className={cn(
+                      'text-[9px] px-1.5 py-0.5 rounded font-mono border flex-shrink-0',
+                      v.kind === 'secret'
+                        ? 'bg-amber-50 text-amber-700 border-amber-200'
+                        : 'bg-gray-100 text-gray-500 border-gray-200 hover:border-amber-300',
+                    )}
+                  >
+                    {v.kind === 'secret' ? '🔒' : '普通'}
+                  </button>
                   <button
                     onClick={() => removeVar(i)}
                     className="text-gray-400 hover:text-red-500 p-1"
@@ -140,7 +169,8 @@ export function EnvironmentDialog({
             </div>
             <p className="mt-1.5 text-[11px] text-gray-400">
               在 URL、Headers、Body 中用{' '}
-              <code className="font-mono text-primary-600">{'{{key}}'}</code> 引用
+              <code className="font-mono text-primary-600">{'{{name}}'}</code>{' '}
+              引用；<span className="text-amber-600">Secret 变量</span>不会出现在导出文件中
             </p>
           </div>
         </div>

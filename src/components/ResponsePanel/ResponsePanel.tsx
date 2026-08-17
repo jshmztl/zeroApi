@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Copy, Download, AlertCircle, Clock, Package, Globe } from 'lucide-react';
+import { Copy, Download, AlertCircle, Clock, Package, Globe, File } from 'lucide-react';
 import { useRequestStore } from '@/store/requestStore';
 import { Tabs } from '@/components/ui/Tabs';
 import { Button } from '@/components/ui/Button';
@@ -7,15 +7,22 @@ import { CodeEditor } from '@/components/CodeEditor/CodeEditor';
 import {
   tryPretty,
   languageFromContentType,
-  tryDetectContentType,
   copyToClipboard,
   downloadText,
 } from '@/lib/formatter';
 import type { PrettyLang } from '@/lib/formatter';
 import { formatBytes, formatDuration, statusColor } from '@/lib/utils';
 import { toast } from '@/components/ui/Toast';
+import type { HeaderEntry } from '@/types';
 
 type RTab = 'body' | 'headers' | 'cookies';
+
+/** 从 Header 数组取 content-type（大小写不敏感） */
+function findHeader(headers: HeaderEntry[], name: string): string | undefined {
+  const lower = name.toLowerCase();
+  const hit = headers.find((h) => h.name.toLowerCase() === lower);
+  return hit?.value;
+}
 
 export function ResponsePanel() {
   const { response, error, loading, request } = useRequestStore();
@@ -24,19 +31,25 @@ export function ResponsePanel() {
 
   // ⚠️ 所有 useMemo 必须在条件返回之前调用（React Hooks 规则）
   const colorInfo = response ? statusColor(response.status) : { bg: '', text: '' };
-  const contentType = response ? tryDetectContentType(response.headers) : '';
+  const contentType = response
+    ? (findHeader(response.headers, 'content-type') || '').split(';')[0].trim()
+    : '';
   const lang = response ? languageFromContentType(contentType) : 'text';
+
+  const bodyText = response?.body.type === 'text' ? response.body.text : '';
+  const isBinary = response?.body.type === 'binary';
 
   const displayBody = React.useMemo(() => {
     if (!response) return '';
-    if (raw) return response.body;
-    const r = tryPretty(response.body, lang as PrettyLang);
-    return r.ok ? r.text : response.body;
+    if (response.body.type !== 'text') return '';
+    if (raw) return response.body.text;
+    const r = tryPretty(response.body.text, lang as PrettyLang);
+    return r.ok ? r.text : response.body.text;
   }, [response, raw, lang]);
 
   const cookieEntries = React.useMemo(() => {
     if (!response) return [];
-    const setCookie = response.headers['set-cookie'] || response.headers['Set-Cookie'];
+    const setCookie = findHeader(response.headers, 'set-cookie');
     if (!setCookie) return [];
     return setCookie
       .split(/,(?=[^;]+=)/)
@@ -46,7 +59,7 @@ export function ResponsePanel() {
 
   const headerEntries = React.useMemo(() => {
     if (!response) return [];
-    return Object.entries(response.headers).filter(([k]) => k.toLowerCase() !== 'set-cookie');
+    return response.headers.filter((h) => h.name.toLowerCase() !== 'set-cookie');
   }, [response]);
 
   if (error) {
@@ -107,7 +120,7 @@ export function ResponsePanel() {
         </span>
         <span className="inline-flex items-center gap-1 text-gray-600 dark:text-gray-400">
           <Clock className="h-3 w-3" />
-          {formatDuration(response.time_ms)}
+          {formatDuration(response.timing?.total_ms ?? 0)}
         </span>
         <span className="inline-flex items-center gap-1 text-gray-600 dark:text-gray-400">
           <Package className="h-3 w-3" />
@@ -118,20 +131,26 @@ export function ResponsePanel() {
           {contentType || 'unknown'}
         </span>
         <div className="flex-1" />
+        {!isBinary && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={async () => {
+              const ok = await copyToClipboard(displayBody);
+              toast[ok ? 'success' : 'error'](ok ? '已复制响应内容' : '复制失败');
+            }}
+          >
+            <Copy className="h-3 w-3" /> 复制
+          </Button>
+        )}
         <Button
           variant="ghost"
           size="sm"
-          onClick={async () => {
-            const ok = await copyToClipboard(displayBody);
-            toast[ok ? 'success' : 'error'](ok ? '已复制响应内容' : '复制失败');
-          }}
-        >
-          <Copy className="h-3 w-3" /> 复制
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => downloadText(response.body, `response-${Date.now()}.txt`)}
+          onClick={() =>
+            isBinary
+              ? toast.info(`二进制响应已保存至本地: ${'path' in response.body ? response.body.path : ''}`)
+              : downloadText(bodyText, `response-${Date.now()}.txt`)
+          }
         >
           <Download className="h-3 w-3" /> 下载
         </Button>
@@ -153,24 +172,39 @@ export function ResponsePanel() {
         {tab === 'body' && (
           <div className="h-full flex flex-col">
             <div className="px-4 py-1.5 flex items-center gap-2 text-[10px]">
-              {['json', 'xml', 'html', 'sql', 'css'].includes(lang) && (
-                <>
-                  <button
-                    onClick={() => setRaw(!raw)}
-                    className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400"
-                  >
-                    {raw ? 'Pretty' : 'Raw'}
-                  </button>
-                  {!raw && (
-                    <span className="text-gray-400 dark:text-gray-500">
-                      {lang.toUpperCase()} 已美化
-                    </span>
-                  )}
-                </>
+              {isBinary ? (
+                <span className="text-gray-500 dark:text-gray-400 inline-flex items-center gap-1">
+                  <File className="h-3 w-3" />
+                  二进制响应（{formatBytes(response.size_bytes)}），已保存至本地文件
+                </span>
+              ) : (
+                ['json', 'xml', 'html', 'sql', 'css'].includes(lang) && (
+                  <>
+                    <button
+                      onClick={() => setRaw(!raw)}
+                      className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400"
+                    >
+                      {raw ? 'Pretty' : 'Raw'}
+                    </button>
+                    {!raw && (
+                      <span className="text-gray-400 dark:text-gray-500">
+                        {lang.toUpperCase()} 已美化
+                      </span>
+                    )}
+                  </>
+                )
               )}
             </div>
             <div className="flex-1 min-h-0 px-4 pb-2">
-              {!response.body || response.body.trim().length === 0 ? (
+              {isBinary ? (
+                <div className="h-full flex flex-col items-center justify-center text-xs text-gray-400 dark:text-gray-500 gap-2">
+                  <File className="h-8 w-8" />
+                  <span>响应超过预览大小上限或为二进制数据</span>
+                  <span className="text-[10px] font-mono">
+                    {'path' in response.body ? response.body.path : ''}
+                  </span>
+                </div>
+              ) : !bodyText || bodyText.trim().length === 0 ? (
                 <div className="h-full flex items-center justify-center text-xs text-gray-400 dark:text-gray-500">
                   响应体为空
                 </div>
@@ -196,13 +230,13 @@ export function ResponsePanel() {
                 </tr>
               </thead>
               <tbody>
-                {headerEntries.map(([k, v]) => (
-                  <tr key={k} className="border-t border-gray-100 dark:border-gray-800">
+                {headerEntries.map((h, i) => (
+                  <tr key={i} className="border-t border-gray-100 dark:border-gray-800">
                     <td className="py-1.5 pr-3 font-mono text-gray-700 dark:text-gray-300 align-top">
-                      {k}
+                      {h.name}
                     </td>
                     <td className="py-1.5 font-mono text-gray-600 dark:text-gray-400 break-all">
-                      {v}
+                      {h.value}
                     </td>
                   </tr>
                 ))}

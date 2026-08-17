@@ -18,8 +18,7 @@ import { toast } from '@/components/ui/Toast';
 import { EnvironmentDialog } from '@/components/Sidebar/EnvironmentDialog';
 import { CollectionDialog } from '@/components/Sidebar/CollectionDialog';
 import { nanoid } from '@/lib/nanoid';
-import type { Environment, Collection, Request, RequestStatus } from '@/types';
-import { REQUEST_STATUS_META } from '@/types';
+import type { Collection, Request } from '@/types';
 import { fullUrlDisplay } from '@/components/RequestPanel/RequestPanel';
 
 type Section = 'collections' | 'history' | 'favorites';
@@ -39,8 +38,8 @@ export function Sidebar() {
     environments,
     removeEnvironment,
     loadEnvironments,
-    savedRequests,
-    loadSavedRequests,
+    requests,
+    loadRequests,
     activeEnvId,
     setActiveEnv,
   } = useDataStore();
@@ -49,7 +48,7 @@ export function Sidebar() {
 
   const [section, setSection] = React.useState<Section>('collections');
   const [envDialog, setEnvDialog] = React.useState(false);
-  const [editingEnv, setEditingEnv] = React.useState<Environment | null>(null);
+  const [editingEnv, setEditingEnv] = React.useState<any | null>(null);
   const [collectionDialog, setCollectionDialog] = React.useState(false);
   const [envDropdown, setEnvDropdown] = React.useState(false);
   const [expandedCollections, setExpandedCollections] = React.useState<Set<string>>(new Set());
@@ -59,8 +58,8 @@ export function Sidebar() {
     loadHistory();
     loadCollections();
     loadEnvironments();
-    loadSavedRequests();
-  }, [loadFavorites, loadHistory, loadCollections, loadEnvironments, loadSavedRequests]);
+    loadRequests();
+  }, [loadFavorites, loadHistory, loadCollections, loadEnvironments, loadRequests]);
 
   const navItems = [
     { key: 'collections' as Section, label: '集合', icon: FolderOpen, count: collections.length },
@@ -78,9 +77,10 @@ export function Sidebar() {
     try {
       const c: Collection = {
         id: nanoid(),
+        project_id: 'default',
         name,
         description,
-        request_ids: [],
+        sort_order: 0,
         created_at: Date.now(),
         updated_at: Date.now(),
       };
@@ -144,7 +144,7 @@ export function Sidebar() {
         {section === 'collections' && (
           <TreeCollectionsList
             items={collections}
-            savedRequests={savedRequests}
+            requests={requests}
             expanded={expandedCollections}
             onToggle={toggleExpand}
             baseUrl={baseUrl}
@@ -283,10 +283,10 @@ export function Sidebar() {
   );
 }
 
-/* ========== 树形集合列表 ========== */
+/* ========== 树形集合列表（Collection → Request） ========== */
 function TreeCollectionsList({
   items,
-  savedRequests,
+  requests,
   expanded,
   onToggle,
   baseUrl,
@@ -294,14 +294,13 @@ function TreeCollectionsList({
   onRemove,
 }: {
   items: Collection[];
-  savedRequests: Request[];
+  requests: Request[];
   expanded: Set<string>;
   onToggle: (id: string) => void;
   baseUrl: string;
   onNew: () => void;
   onRemove: (id: string) => void;
 }) {
-  const navigate = useNavigate();
   return (
     <div className="space-y-0.5">
       <button
@@ -314,7 +313,7 @@ function TreeCollectionsList({
         <EmptyState tip="暂无集合" />
       ) : (
         items.map((c) => {
-          const children = savedRequests.filter((r) => c.request_ids.includes(r.id));
+          const children = requests.filter((r) => r.collection_id === c.id);
           const isOpen = expanded.has(c.id);
           return (
             <div key={c.id}>
@@ -374,7 +373,6 @@ function TreeCollectionsList({
 function RequestMiniItem({ item, baseUrl }: { item: Request; baseUrl: string }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const statusMeta = REQUEST_STATUS_META[item.status as RequestStatus];
   const fullUrl = fullUrlDisplay(item.url, baseUrl);
   return (
     <div
@@ -395,16 +393,6 @@ function RequestMiniItem({ item, baseUrl }: { item: Request; baseUrl: string }) 
           </span>
         )}
       </div>
-      {statusMeta && (
-        <span
-          className={cn(
-            'px-1 h-3.5 inline-flex items-center text-[8px] rounded whitespace-nowrap flex-shrink-0',
-            statusMeta.color,
-          )}
-        >
-          {statusMeta.label}
-        </span>
-      )}
     </div>
   );
 }
@@ -444,7 +432,7 @@ function FavoritesList({
   );
 }
 
-/* ========== 历史列表 ========== */
+/* ========== 历史列表（基于 RequestExecution） ========== */
 function HistoryList({
   items,
   baseUrl,
@@ -456,6 +444,8 @@ function HistoryList({
   onClear: () => void;
   onRemove: (id: string) => void;
 }) {
+  const navigate = useNavigate();
+  const location = useLocation();
   if (items.length === 0) return <EmptyState tip="暂无历史记录" />;
   return (
     <div className="space-y-1">
@@ -467,30 +457,79 @@ function HistoryList({
           清空
         </button>
       </div>
-      {items.map((h) => (
-        <RequestListItem
-          key={h.id}
-          item={h.request}
-          baseUrl={baseUrl}
-          subtitle={`${h.response.status} · ${h.response.time_ms}ms`}
-          right={
-            <div className="flex items-center gap-0.5">
-              <span className="text-[10px] text-gray-400 dark:text-gray-500 flex-shrink-0">
-                {formatDate(h.created_at)}
-              </span>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onRemove(h.id);
-                }}
-                className="opacity-0 group-hover:opacity-100 text-gray-400 dark:text-gray-500 hover:text-red-500 p-0.5 flex-shrink-0"
-              >
-                <Trash2 className="h-3 w-3" />
-              </button>
+      {items.map((h) => {
+        const exec = h.execution;
+        const status = exec.status_code;
+        return (
+          <div
+            key={exec.id}
+            onClick={async () => {
+              // 加载该次执行对应的请求（Replay 的基础）
+              try {
+                const req = await tauri.getRequest(exec.request_id);
+                if (req) {
+                  if (location.pathname !== '/') navigate('/');
+                  window.dispatchEvent(new CustomEvent('zeroapi:load-request', { detail: req }));
+                }
+              } catch (e) {
+                console.error(e);
+              }
+            }}
+            className="group px-2 py-1.5 rounded hover:bg-white dark:hover:bg-gray-800 cursor-pointer"
+          >
+            <div className="flex items-center justify-between gap-1">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="px-1 h-4 inline-flex items-center text-[9px] font-bold rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 flex-shrink-0">
+                    {h.method}
+                  </span>
+                  {status != null && (
+                    <span
+                      className={cn(
+                        'px-1 h-4 inline-flex items-center text-[9px] rounded flex-shrink-0',
+                        status >= 200 && status < 300
+                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
+                          : status >= 400
+                            ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400'
+                            : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
+                      )}
+                    >
+                      {status}
+                    </span>
+                  )}
+                  <span className="text-xs text-gray-700 dark:text-gray-300 truncate">
+                    {h.name || '(未命名)'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 mt-0.5">
+                  {h.url && (
+                    <span className="text-[10px] text-gray-400 dark:text-gray-500 font-mono truncate">
+                      {fullUrlDisplay(h.url, baseUrl)}
+                    </span>
+                  )}
+                  <span className="text-[10px] text-gray-400 dark:text-gray-500 flex-shrink-0">
+                    {exec.duration_ms}ms
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-0.5 flex-shrink-0">
+                <span className="text-[10px] text-gray-400 dark:text-gray-500">
+                  {formatDate(exec.started_at)}
+                </span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemove(exec.id);
+                  }}
+                  className="opacity-0 group-hover:opacity-100 text-gray-400 dark:text-gray-500 hover:text-red-500 p-0.5"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </div>
             </div>
-          }
-        />
-      ))}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -509,7 +548,6 @@ function RequestListItem({
 }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const statusMeta = REQUEST_STATUS_META[item.status as RequestStatus];
   const displayUrl = fullUrlDisplay(item.url, baseUrl);
   return (
     <div
@@ -525,16 +563,6 @@ function RequestListItem({
             <span className="px-1 h-4 inline-flex items-center text-[9px] font-bold rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 flex-shrink-0">
               {item.method}
             </span>
-            {statusMeta && (
-              <span
-                className={cn(
-                  'px-1 h-4 inline-flex items-center text-[9px] rounded whitespace-nowrap flex-shrink-0',
-                  statusMeta.color,
-                )}
-              >
-                {statusMeta.label}
-              </span>
-            )}
             <span className="text-xs text-gray-700 dark:text-gray-300 truncate">
               {item.name || '(空)'}
             </span>

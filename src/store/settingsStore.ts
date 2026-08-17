@@ -20,6 +20,7 @@ const DEFAULT_SETTINGS: Settings = {
   history_limit: 100,
   verify_ssl: true,
   follow_redirects: true,
+  max_preview_size: 5 * 1024 * 1024,
 };
 
 const persist = async (settings: Settings) => {

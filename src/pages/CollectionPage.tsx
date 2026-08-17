@@ -4,8 +4,10 @@ import { ArrowLeft, Trash2, Edit2, Check, X, ExternalLink } from 'lucide-react';
 import { useDataStore } from '@/store/dataStore';
 import { tauri } from '@/lib/tauri';
 import { toast } from '@/components/ui/Toast';
-import { REQUEST_STATUS_META } from '@/types';
 import { fullUrlDisplay } from '@/components/RequestPanel/RequestPanel';
+
+/** 未分类集合（与后端迁移常量保持一致） */
+const UNCATEGORIZED = 'uncategorized';
 
 export function CollectionPage() {
   const { id } = useParams();
@@ -14,11 +16,8 @@ export function CollectionPage() {
     collections,
     loadCollections,
     removeCollection,
-    updateCollection,
-    savedRequests,
-    loadSavedRequests,
-    detachFromCollection,
-    attachToCollection,
+    requests,
+    loadRequests,
     environments,
     activeEnvId,
   } = useDataStore();
@@ -33,8 +32,8 @@ export function CollectionPage() {
 
   React.useEffect(() => {
     loadCollections();
-    loadSavedRequests();
-  }, [loadCollections, loadSavedRequests, id]);
+    loadRequests();
+  }, [loadCollections, loadRequests, id]);
 
   const col = collections.find((c) => c.id === id);
 
@@ -49,8 +48,8 @@ export function CollectionPage() {
     );
   }
 
-  const items = savedRequests.filter((r) => col.request_ids.includes(r.id));
-  const otherCollections = collections.filter((c) => c.id !== col.id);
+  const items = requests.filter((r) => r.collection_id === col.id);
+  const otherCollections = collections.filter((c) => c.id !== col.id && c.id !== UNCATEGORIZED);
 
   /* 重命名 */
   const handleRename = () => {
@@ -64,7 +63,13 @@ export function CollectionPage() {
       return;
     }
     try {
-      await updateCollection(col.id, { name: editName.trim(), description: editDesc.trim() });
+      await tauri.saveCollection({
+        ...col,
+        name: editName.trim(),
+        description: editDesc.trim() || null,
+        updated_at: Date.now(),
+      });
+      await loadCollections();
       toast.success('集合已更新');
       setEditing(false);
     } catch (e: any) {
@@ -84,12 +89,12 @@ export function CollectionPage() {
     }
   };
 
-  /* 从集合移除 */
+  /* 从集合移除（移到未分类） */
   const handleRemoveRequest = async (reqId: string) => {
     try {
-      await detachFromCollection(col.id, reqId);
-      await loadSavedRequests();
-      toast.success('已从集合移除');
+      await tauri.saveRequest({ ...(requests.find((r) => r.id === reqId) as any), collection_id: UNCATEGORIZED });
+      await loadRequests();
+      toast.success('已移出集合');
     } catch (e: any) {
       toast.error('移除失败: ' + String(e));
     }
@@ -98,9 +103,8 @@ export function CollectionPage() {
   /* 迁移到其他集合 */
   const handleMoveRequest = async (reqId: string, targetId: string) => {
     try {
-      await detachFromCollection(col.id, reqId);
-      await attachToCollection(targetId, reqId);
-      await loadSavedRequests();
+      await tauri.saveRequest({ ...(requests.find((r) => r.id === reqId) as any), collection_id: targetId });
+      await loadRequests();
       toast.success('已迁移');
       setMoveReqId(null);
       setMoveTarget(null);
@@ -181,9 +185,6 @@ export function CollectionPage() {
           <div className="text-center py-12 text-gray-400 text-sm">这个集合里还没有请求</div>
         )}
         {items.map((req) => {
-          const statusMeta = (
-            REQUEST_STATUS_META as Record<string, { label: string; color: string }>
-          )[req.status];
           const displayUrl = fullUrlDisplay(req.url, baseUrl);
           return (
             <div
@@ -209,13 +210,6 @@ export function CollectionPage() {
                   </span>
                 )}
               </div>
-              {statusMeta && (
-                <span
-                  className={`px-1.5 py-0.5 text-[9px] rounded whitespace-nowrap flex-shrink-0 ${statusMeta.color}`}
-                >
-                  {statusMeta.label}
-                </span>
-              )}
               {/* 操作按钮 */}
               <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 flex-shrink-0">
                 {/* 迁移 */}

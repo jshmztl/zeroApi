@@ -49,14 +49,14 @@ export function languageFromContentType(ct: string): string {
 
 export function buildFullUrl(
   url: string,
-  params: { key: string; value: string; enabled: boolean }[],
+  params: { name: string; value: string; enabled: boolean }[],
 ): string {
   if (!url) return '';
-  const enabled = params.filter((p) => p.enabled && p.key);
+  const enabled = params.filter((p) => p.enabled && p.name);
   if (enabled.length === 0) return url;
   const sep = url.includes('?') ? '&' : '?';
   const qs = enabled
-    .map((p) => `${encodeURIComponent(p.key)}=${encodeURIComponent(p.value)}`)
+    .map((p) => `${encodeURIComponent(p.name)}=${encodeURIComponent(p.value)}`)
     .join('&');
   return url + sep + qs;
 }

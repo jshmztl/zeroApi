@@ -12,8 +12,8 @@ import { AuthEditor } from '@/components/RequestPanel/AuthEditor';
 import { tauri } from '@/lib/tauri';
 import { toast } from '@/components/ui/Toast';
 import { CollectionDialog } from '@/components/Sidebar/CollectionDialog';
-import { HTTP_METHODS, REQUEST_STATUS_META } from '@/types';
-import type { RequestStatus, Collection } from '@/types';
+import { HTTP_METHODS } from '@/types';
+import type { Collection } from '@/types';
 import { nanoid } from '@/lib/nanoid';
 import { buildFullUrl } from '@/lib/formatter';
 import { cn } from '@/lib/utils';
@@ -35,12 +35,6 @@ const METHOD_OPTIONS = HTTP_METHODS.map((m) => ({
               : '#6B7280',
 }));
 
-const STATUS_OPTIONS = (Object.keys(REQUEST_STATUS_META) as RequestStatus[]).map((s) => ({
-  value: s,
-  label: REQUEST_STATUS_META[s].label,
-  color: REQUEST_STATUS_META[s].color,
-}));
-
 type TabKey = 'params' | 'headers' | 'body' | 'auth';
 
 export function RequestPanel() {
@@ -48,11 +42,10 @@ export function RequestPanel() {
     request,
     setMethod,
     setUrl,
-    setParams,
+    setQuery,
     setHeaders,
     setBody,
     setAuth,
-    setStatus,
     loading,
     response,
     send,
@@ -62,15 +55,13 @@ export function RequestPanel() {
     loadHistory,
     loadFavorites,
     loadCollections,
-    loadSavedRequests,
+    loadRequests,
     collections,
     environments,
     activeEnvId,
-    attachToCollection,
   } = useDataStore();
   const [tab, setTab] = React.useState<TabKey>('body');
   const [saveDropdown, setSaveDropdown] = React.useState(false);
-  const [statusDropdown, setStatusDropdown] = React.useState(false);
   const [newCollectionDialog, setNewCollectionDialog] = React.useState(false);
 
   // 加载已保存/历史请求时，默认切换到 Body tab
@@ -87,10 +78,8 @@ export function RequestPanel() {
   const activeEnv = environments.find((e) => e.id === activeEnvId);
   const baseUrl = activeEnv?.base_url || '';
 
-  const enabledParamsCount = request.params.filter((p) => p.enabled && p.key).length;
-  const enabledHeadersCount = request.headers.filter((h) => h.enabled && h.key).length;
-
-  const currentStatusMeta = REQUEST_STATUS_META[request.status];
+  const enabledParamsCount = request.query.filter((p) => p.enabled && p.name).length;
+  const enabledHeadersCount = request.headers.filter((h) => h.name).length;
 
   const handleSend = async () => {
     if (!request.url.trim()) {
@@ -137,11 +126,12 @@ export function RequestPanel() {
     }
     try {
       const reqId = request.id || nanoid();
-      const lastResponse = response && response.status >= 200 && response.status < 400 ? response : null;
-      await tauri.saveSavedRequest({ ...request, id: reqId, last_response: lastResponse }, collectionId);
-      await attachToCollection(collectionId, reqId);
-      await loadFavorites();
-      await loadSavedRequests();
+      await tauri.saveRequest({
+        ...request,
+        id: reqId,
+        collection_id: collectionId,
+      });
+      await loadRequests();
       toast.success('已保存到集合');
     } catch (e: any) {
       toast.error('保存失败: ' + String(e));
@@ -153,9 +143,10 @@ export function RequestPanel() {
     try {
       const c: Collection = {
         id: nanoid(),
+        project_id: 'default',
         name,
         description,
-        request_ids: [],
+        sort_order: 0,
         created_at: Date.now(),
         updated_at: Date.now(),
       };
@@ -168,11 +159,11 @@ export function RequestPanel() {
     }
   };
 
-  const fullUrl = buildFullUrl(request.url, request.params);
+  const fullUrl = buildFullUrl(request.url, request.query);
 
   return (
     <div className="flex flex-col bg-white dark:bg-gray-900">
-      {/* 顶部：名称 + 状态 + 方法 + URL + 操作按钮 */}
+      {/* 顶部：名称 + 方法 + URL + 操作按钮 */}
       <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex items-center gap-2">
         {/* 请求名（必填） */}
         <Input
@@ -181,42 +172,6 @@ export function RequestPanel() {
           placeholder="请求名（必填）"
           className="w-40 text-sm border-primary-300 focus:border-primary-500"
         />
-
-        {/* 状态选择（带颜色） */}
-        <div className="relative">
-          <button
-            onClick={() => setStatusDropdown(!statusDropdown)}
-            className={cn(
-              'h-8 px-2 text-xs rounded border focus:outline-none focus:ring-2 focus:ring-primary-500/30 flex items-center gap-1 whitespace-nowrap',
-              currentStatusMeta.color,
-              'border-gray-200 dark:border-gray-700',
-            )}
-            title="接口状态"
-          >
-            <span>{currentStatusMeta.label}</span>
-            <span className="text-[10px] ml-0.5">▼</span>
-          </button>
-          {statusDropdown && (
-            <div className="absolute left-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-50 min-w-[80px]">
-              {STATUS_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => {
-                    setStatus(opt.value);
-                    setStatusDropdown(false);
-                  }}
-                  className={cn(
-                    'w-full text-left px-2 py-1.5 text-xs',
-                    opt.color,
-                    'hover:opacity-80',
-                  )}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
 
         {/* 方法 */}
         <Select value={request.method} onChange={setMethod} options={METHOD_OPTIONS} />
@@ -286,7 +241,6 @@ export function RequestPanel() {
                     className="w-full text-left px-3 py-1.5 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                   >
                     {c.name}
-                    <span className="text-[10px] text-gray-400 ml-1">({c.request_ids.length})</span>
                   </button>
                 ))
               )}
@@ -323,29 +277,38 @@ export function RequestPanel() {
       <div className="px-4 py-3 max-h-[42vh] overflow-auto">
         {tab === 'params' && (
           <KeyValueEditor
-            value={request.params}
-            onChange={setParams}
+            value={request.query}
+            onChange={setQuery}
             keyPlaceholder="参数名"
             valuePlaceholder="参数值"
             bulkPaste
-            showDescription
           />
         )}
         {tab === 'headers' && (
           <KeyValueEditor
-            value={request.headers}
-            onChange={setHeaders}
+            value={request.headers.map((h) => ({ name: h.name, value: h.value, enabled: true }))}
+            onChange={(items) =>
+              setHeaders(
+                items
+                  .filter((i) => i.name.trim())
+                  .map((i) => ({ name: i.name, value: i.value })),
+              )
+            }
             keyPlaceholder="Header"
             valuePlaceholder="Value"
             presets={[
-              { key: 'Content-Type', value: 'application/json' },
-              { key: 'Accept', value: 'application/json' },
-              { key: 'User-Agent', value: 'ZeroApi/1.0' },
+              { name: 'Content-Type', value: 'application/json' },
+              { name: 'Accept', value: 'application/json' },
+              { name: 'User-Agent', value: 'ZeroApi/2.0' },
             ]}
           />
         )}
-        {tab === 'body' && <BodyEditor value={request.body} onChange={setBody} />}
-        {tab === 'auth' && <AuthEditor value={request.auth} onChange={setAuth} />}
+        {tab === 'body' && (
+          <BodyEditor value={request.body ?? { type: 'none' }} onChange={setBody} />
+        )}
+        {tab === 'auth' && (
+          <AuthEditor value={request.auth ?? { type: 'none' }} onChange={setAuth} />
+        )}
       </div>
 
       {/* 状态栏 */}
@@ -357,7 +320,7 @@ export function RequestPanel() {
             {response.status} {response.status_text}
           </span>
           <span>·</span>
-          <span>{response.time_ms} ms</span>
+          <span>{response.timing?.total_ms ?? 0} ms</span>
           <span>·</span>
           <span>{(response.size_bytes / 1024).toFixed(2)} KB</span>
         </div>

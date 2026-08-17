@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Request, ResponseSnapshot, KeyValue, Body, Auth, RequestStatus } from '@/types';
+import type { Request, ResponseSnapshot, KeyValue, RequestBody, AuthConfig } from '@/types';
 import { makeEmptyRequest } from '@/types';
 import { tauri } from '@/lib/tauri';
 import { nanoid } from '@/lib/nanoid';
@@ -14,11 +14,10 @@ interface RequestState {
   setMethod: (m: string) => void;
   setUrl: (u: string) => void;
   setName: (n: string) => void;
-  setBody: (b: Body) => void;
-  setAuth: (a: Auth) => void;
-  setParams: (p: KeyValue[]) => void;
-  setHeaders: (h: KeyValue[]) => void;
-  setStatus: (s: RequestStatus) => void;
+  setBody: (b: RequestBody) => void;
+  setAuth: (a: AuthConfig) => void;
+  setQuery: (q: KeyValue[]) => void;
+  setHeaders: (h: { name: string; value: string }[]) => void;
   loadRequest: (r: Request) => void;
   resetRequest: () => void;
   setResponse: (r: ResponseSnapshot | null) => void;
@@ -36,15 +35,14 @@ export const useRequestStore = create<RequestState>((set, get) => ({
   error: null,
   clientId: null,
 
-  setMethod: (m) => set((s) => ({ request: { ...s.request, method: m } })),
+  setMethod: (m) => set((s) => ({ request: { ...s.request, method: m as Request['method'] } })),
   setUrl: (u) => set((s) => ({ request: { ...s.request, url: u } })),
   setName: (n) => set((s) => ({ request: { ...s.request, name: n } })),
   setBody: (b) => set((s) => ({ request: { ...s.request, body: b } })),
   setAuth: (a) => set((s) => ({ request: { ...s.request, auth: a } })),
-  setParams: (p) => set((s) => ({ request: { ...s.request, params: p } })),
+  setQuery: (q) => set((s) => ({ request: { ...s.request, query: q } })),
   setHeaders: (h) => set((s) => ({ request: { ...s.request, headers: h } })),
-  setStatus: (st) => set((s) => ({ request: { ...s.request, status: st } })),
-  loadRequest: (r) => set({ request: r, response: r.last_response || null, error: null }),
+  loadRequest: (r) => set({ request: r, response: null, error: null }),
   resetRequest: () =>
     set({ request: makeEmptyRequest(), response: null, error: null, clientId: null }),
   setResponse: (r) => set({ response: r, loading: false }),

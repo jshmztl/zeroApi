@@ -1,5 +1,5 @@
 import * as React from 'react';
-import type { Body } from '@/types';
+import type { RequestBody } from '@/types';
 import { KeyValueEditor } from '@/components/KeyValueEditor/KeyValueEditor';
 import { CodeEditor } from '@/components/CodeEditor/CodeEditor';
 import { cn } from '@/lib/utils';
@@ -23,7 +23,7 @@ const RAW_TYPES = [
   { value: 'application/javascript', label: 'JavaScript' },
 ];
 
-export function BodyEditor({ value, onChange }: { value: Body; onChange: (b: Body) => void }) {
+export function BodyEditor({ value, onChange }: { value: RequestBody; onChange: (b: RequestBody) => void }) {
   const mode: Mode =
     value.type === 'none'
       ? 'none'

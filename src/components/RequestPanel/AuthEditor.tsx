@@ -1,5 +1,5 @@
 import * as React from "react";
-import type { Auth } from "@/types";
+import type { AuthConfig } from "@/types";
 import { Input } from "@/components/ui/Input";
 import { cn } from "@/lib/utils";
 
@@ -10,7 +10,7 @@ const TYPES = [
   { value: "api_key", label: "API Key" },
 ];
 
-export function AuthEditor({ value, onChange }: { value: Auth; onChange: (a: Auth) => void }) {
+export function AuthEditor({ value, onChange }: { value: AuthConfig; onChange: (a: AuthConfig) => void }) {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-1">

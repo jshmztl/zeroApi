@@ -1,29 +1,27 @@
 import * as React from "react";
-import { Plus, Trash2, Check } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import type { KeyValue } from "@/types";
-import { cn } from "@/lib/utils";
 
 export function KeyValueEditor({
   value, onChange,
   keyPlaceholder, valuePlaceholder,
-  presets, bulkPaste, showDescription,
+  presets, bulkPaste,
 }: {
   value: KeyValue[];
   onChange: (v: KeyValue[]) => void;
   keyPlaceholder?: string;
   valuePlaceholder?: string;
-  presets?: { key: string; value: string }[];
+  presets?: { name: string; value: string }[];
   bulkPaste?: boolean;
-  showDescription?: boolean;
 }) {
-  const add = (preset?: { key: string; value: string }) => {
+  const add = (preset?: { name: string; value: string }) => {
     onChange([
       ...value,
       preset
-        ? { key: preset.key, value: preset.value, enabled: true }
-        : { key: "", value: "", enabled: true },
+        ? { name: preset.name, value: preset.value, enabled: true }
+        : { name: "", value: "", enabled: true },
     ]);
   };
   const update = (i: number, patch: Partial<KeyValue>) => {
@@ -42,9 +40,9 @@ export function KeyValueEditor({
       // 支持 key=value / key:value / key\tvalue / 纯 key
       const m = t.match(/^([^=:]+)[:=]\s*(.*)$/);
       if (m) {
-        newItems.push({ key: m[1].trim(), value: m[2].trim(), enabled: true });
+        newItems.push({ name: m[1].trim(), value: m[2].trim(), enabled: true });
       } else {
-        newItems.push({ key: t, value: "", enabled: true });
+        newItems.push({ name: t, value: "", enabled: true });
       }
     }
     if (newItems.length > 0) {
@@ -59,11 +57,11 @@ export function KeyValueEditor({
           <span className="text-[10px] text-gray-400">快速添加:</span>
           {presets.map((p) => (
             <button
-              key={p.key}
+              key={p.name}
               onClick={() => add(p)}
               className="text-[10px] px-1.5 py-0.5 bg-primary-50 text-primary-700 hover:bg-primary-100 rounded transition-colors"
             >
-              + {p.key}
+              + {p.name}
             </button>
           ))}
         </div>
@@ -84,8 +82,8 @@ export function KeyValueEditor({
             className="rounded text-primary-500 focus:ring-primary-500"
           />
           <Input
-            value={kv.key}
-            onChange={(e) => update(i, { key: e.target.value })}
+            value={kv.name}
+            onChange={(e) => update(i, { name: e.target.value })}
             placeholder={keyPlaceholder}
             className="flex-1 font-mono text-xs"
           />
@@ -95,14 +93,6 @@ export function KeyValueEditor({
             placeholder={valuePlaceholder}
             className="flex-1 font-mono text-xs"
           />
-          {showDescription && (
-            <Input
-              value={kv.description || ''}
-              onChange={(e) => update(i, { description: e.target.value })}
-              placeholder="描述"
-              className="flex-1 text-xs"
-            />
-          )}
           <button
             onClick={() => remove(i)}
             className="text-gray-300 hover:text-red-500 p-1"
