@@ -8,6 +8,7 @@ import {
   Trash2,
   ChevronRight,
   ChevronDown,
+  RotateCw,
 } from 'lucide-react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDataStore } from '@/store/dataStore';
@@ -17,6 +18,7 @@ import { tauri } from '@/lib/tauri';
 import { toast } from '@/components/ui/Toast';
 import { EnvironmentDialog } from '@/components/Sidebar/EnvironmentDialog';
 import { CollectionDialog } from '@/components/Sidebar/CollectionDialog';
+import { DiffModal } from '@/components/ResponsePanel/DiffModal';
 import { nanoid } from '@/lib/nanoid';
 import type { Collection, Request } from '@/types';
 import { fullUrlDisplay } from '@/components/RequestPanel/RequestPanel';
@@ -52,6 +54,10 @@ export function Sidebar() {
   const [collectionDialog, setCollectionDialog] = React.useState(false);
   const [envDropdown, setEnvDropdown] = React.useState(false);
   const [expandedCollections, setExpandedCollections] = React.useState<Set<string>>(new Set());
+  // Response Diff 状态
+  const [diffSelecting, setDiffSelecting] = React.useState(false);
+  const [diffSelected, setDiffSelected] = React.useState<string[]>([]);
+  const [diffTarget, setDiffTarget] = React.useState<{ a: any; b: any } | null>(null);
 
   React.useEffect(() => {
     loadFavorites();
@@ -159,6 +165,35 @@ export function Sidebar() {
           <HistoryList
             items={history}
             baseUrl={baseUrl}
+            selecting={diffSelecting}
+            selectedIds={diffSelected}
+            onToggleSelect={(id) => {
+              setDiffSelected((prev) =>
+                prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+              );
+            }}
+            onStartDiff={() => {
+              setDiffSelecting(true);
+              setDiffSelected([]);
+            }}
+            onCancelDiff={() => {
+              setDiffSelecting(false);
+              setDiffSelected([]);
+            }}
+            onRunDiff={() => {
+              if (diffSelected.length !== 2) return;
+              const [idA, idB] = diffSelected;
+              const a = history.find((h) => h.execution.id === idA);
+              const b = history.find((h) => h.execution.id === idB);
+              if (a && b) {
+                setDiffTarget({
+                  a: { exec: a, title: `${a.name} · ${a.execution.status_code ?? '-'}` },
+                  b: { exec: b, title: `${b.name} · ${b.execution.status_code ?? '-'}` },
+                });
+              }
+              setDiffSelecting(false);
+              setDiffSelected([]);
+            }}
             onClear={async () => {
               if (confirm('清空所有历史记录？')) {
                 await clearHistory();
@@ -277,6 +312,15 @@ export function Sidebar() {
         <CollectionDialog
           onClose={() => setCollectionDialog(false)}
           onSave={handleCreateCollection}
+        />
+      )}
+      {diffTarget && (
+        <DiffModal
+          leftText={diffTarget.a.exec.execution.response?.body.type === 'text' ? diffTarget.a.exec.execution.response.body.text : '(二进制)'}
+          rightText={diffTarget.b.exec.execution.response?.body.type === 'text' ? diffTarget.b.exec.execution.response.body.text : '(二进制)'}
+          leftTitle={diffTarget.a.title}
+          rightTitle={diffTarget.b.title}
+          onClose={() => setDiffTarget(null)}
         />
       )}
     </aside>
@@ -436,11 +480,23 @@ function FavoritesList({
 function HistoryList({
   items,
   baseUrl,
+  selecting,
+  selectedIds,
+  onToggleSelect,
+  onStartDiff,
+  onCancelDiff,
+  onRunDiff,
   onClear,
   onRemove,
 }: {
   items: any[];
   baseUrl: string;
+  selecting: boolean;
+  selectedIds: string[];
+  onToggleSelect: (id: string) => void;
+  onStartDiff: () => void;
+  onCancelDiff: () => void;
+  onRunDiff: () => void;
   onClear: () => void;
   onRemove: (id: string) => void;
 }) {
@@ -449,37 +505,85 @@ function HistoryList({
   if (items.length === 0) return <EmptyState tip="暂无历史记录" />;
   return (
     <div className="space-y-1">
-      <div className="flex justify-end mb-1">
-        <button
-          onClick={onClear}
-          className="text-[10px] text-gray-400 dark:text-gray-500 hover:text-red-500"
-        >
-          清空
-        </button>
+      <div className="flex justify-between items-center mb-1">
+        {selecting ? (
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] text-gray-400">
+              已选 {selectedIds.length}/2（选择两条进行对比）
+            </span>
+            <button
+              onClick={onRunDiff}
+              disabled={selectedIds.length !== 2}
+              className="text-[10px] px-1.5 py-0.5 rounded bg-primary-50 text-primary-700 hover:bg-primary-100 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              对比
+            </button>
+            <button
+              onClick={onCancelDiff}
+              className="text-[10px] text-gray-400 hover:text-gray-600"
+            >
+              取消
+            </button>
+          </div>
+        ) : (
+          <div className="flex justify-end flex-1">
+            <button
+              onClick={onStartDiff}
+              className="text-[10px] text-gray-400 dark:text-gray-500 hover:text-primary-600"
+              title="选择两条历史响应进行对比"
+            >
+              对比
+            </button>
+            <button
+              onClick={onClear}
+              className="text-[10px] text-gray-400 dark:text-gray-500 hover:text-red-500 ml-2"
+            >
+              清空
+            </button>
+          </div>
+        )}
       </div>
       {items.map((h) => {
         const exec = h.execution;
         const status = exec.status_code;
+        const isSelected = selectedIds.includes(exec.id);
         return (
           <div
             key={exec.id}
-            onClick={async () => {
-              // 加载该次执行对应的请求（Replay 的基础）
-              try {
-                const req = await tauri.getRequest(exec.request_id);
-                if (req) {
-                  if (location.pathname !== '/') navigate('/');
-                  window.dispatchEvent(new CustomEvent('zeroapi:load-request', { detail: req }));
-                }
-              } catch (e) {
-                console.error(e);
-              }
-            }}
-            className="group px-2 py-1.5 rounded hover:bg-white dark:hover:bg-gray-800 cursor-pointer"
+            onClick={
+              selecting
+                ? () => onToggleSelect(exec.id)
+                : async () => {
+                    // 加载该次执行对应的请求（Replay 的基础）
+                    try {
+                      const req = await tauri.getRequest(exec.request_id);
+                      if (req) {
+                        if (location.pathname !== '/') navigate('/');
+                        window.dispatchEvent(new CustomEvent('zeroapi:load-request', { detail: req }));
+                      }
+                    } catch (e) {
+                      console.error(e);
+                    }
+                  }
+            }
+            className={`group px-2 py-1.5 rounded cursor-pointer ${
+              isSelected
+                ? 'bg-primary-50 dark:bg-primary-900/20 ring-1 ring-primary-300 dark:ring-primary-700'
+                : 'hover:bg-white dark:hover:bg-gray-800'
+            }`}
           >
             <div className="flex items-center justify-between gap-1">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
+                  {selecting && (
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => onToggleSelect(exec.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="rounded text-primary-500 flex-shrink-0"
+                    />
+                  )}
                   <span className="px-1 h-4 inline-flex items-center text-[9px] font-bold rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 flex-shrink-0">
                     {h.method}
                   </span>
@@ -512,20 +616,47 @@ function HistoryList({
                   </span>
                 </div>
               </div>
-              <div className="flex items-center gap-0.5 flex-shrink-0">
-                <span className="text-[10px] text-gray-400 dark:text-gray-500">
-                  {formatDate(exec.started_at)}
-                </span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRemove(exec.id);
-                  }}
-                  className="opacity-0 group-hover:opacity-100 text-gray-400 dark:text-gray-500 hover:text-red-500 p-0.5"
-                >
-                  <Trash2 className="h-3 w-3" />
-                </button>
-              </div>
+              {!selecting && (
+                <div className="flex items-center gap-0.5 flex-shrink-0">
+                  <span className="text-[10px] text-gray-400 dark:text-gray-500">
+                    {formatDate(exec.started_at)}
+                  </span>
+                  {/* Replay（文档 §25）：恢复请求并重新执行，产生新 RequestExecution */}
+                  <button
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      try {
+                        const req = await tauri.getRequest(exec.request_id);
+                        if (!req) {
+                          toast.error('原请求不存在，无法重放');
+                          return;
+                        }
+                        if (location.pathname !== '/') navigate('/');
+                        window.dispatchEvent(new CustomEvent('zeroapi:load-request', { detail: req }));
+                        // 等待 load 生效后自动发送
+                        setTimeout(() => {
+                          useRequestStore.getState().send();
+                        }, 50);
+                      } catch (err) {
+                        toast.error('重放失败: ' + String(err));
+                      }
+                    }}
+                    className="opacity-0 group-hover:opacity-100 text-gray-400 dark:text-gray-500 hover:text-primary-600 p-0.5"
+                    title="重放此请求"
+                  >
+                    <RotateCw className="h-3 w-3" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRemove(exec.id);
+                    }}
+                    className="opacity-0 group-hover:opacity-100 text-gray-400 dark:text-gray-500 hover:text-red-500 p-0.5"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         );

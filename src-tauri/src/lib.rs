@@ -152,7 +152,10 @@ pub fn run() {
             // Import / Export
             commands::import::import_curl,
             commands::import::import_json,
+            commands::import::import_openapi,
+            commands::import::import_openapi_url,
             commands::export::export_json,
+            commands::request::export_curl,
             // Settings
             commands::settings::get_settings,
             commands::settings::save_settings,

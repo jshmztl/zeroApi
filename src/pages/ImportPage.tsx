@@ -1,7 +1,8 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
-import { Wand2, Upload, FileJson } from "lucide-react";
+import { Wand2, Upload, FileJson, Globe, FileCode2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { CodeEditor } from "@/components/CodeEditor/CodeEditor";
 import { tauri } from "@/lib/tauri";
 import { useRequestStore } from "@/store/requestStore";
@@ -40,10 +41,13 @@ const EXAMPLES = [
 export function ImportPage() {
   const nav = useNavigate();
   const { loadRequest } = useRequestStore();
-  const { loadFavorites, loadCollections, loadEnvironments } = useDataStore();
+  const { loadFavorites, loadCollections, loadEnvironments, loadRequests, loadProjects } = useDataStore();
   const [curlText, setCurlText] = React.useState("");
   const [jsonText, setJsonText] = React.useState("");
-  const [mode, setMode] = React.useState<"curl" | "json">("curl");
+  const [openapiText, setOpenapiText] = React.useState("");
+  const [openapiUrl, setOpenapiUrl] = React.useState("");
+  const [urlLoading, setUrlLoading] = React.useState(false);
+  const [mode, setMode] = React.useState<"curl" | "json" | "openapi">("curl");
 
   const importCurl = async () => {
     if (!curlText.trim()) {
@@ -73,6 +77,43 @@ export function ImportPage() {
       );
     } catch (e: any) {
       toast.error("导入失败: " + String(e));
+    }
+  };
+
+  const importOpenapi = async () => {
+    if (!openapiText.trim()) {
+      toast.error("请先粘贴 OpenAPI 内容");
+      return;
+    }
+    try {
+      const result = await tauri.importOpenapi(openapiText);
+      await Promise.all([loadCollections(), loadRequests(), loadProjects()]);
+      toast.success(
+        `OpenAPI 导入完成: 项目「${result.project_name}」 · ${result.collections} 个集合 · ${result.requests} 个请求`
+      );
+      nav("/");
+    } catch (e: any) {
+      toast.error("OpenAPI 导入失败: " + String(e));
+    }
+  };
+
+  const importOpenapiByUrl = async () => {
+    if (!openapiUrl.trim()) {
+      toast.error("请输入 OpenAPI 文档 URL");
+      return;
+    }
+    setUrlLoading(true);
+    try {
+      const result = await tauri.importOpenapiUrl(openapiUrl.trim());
+      await Promise.all([loadCollections(), loadRequests(), loadProjects()]);
+      toast.success(
+        `OpenAPI 导入完成: 项目「${result.project_name}」 · ${result.collections} 个集合 · ${result.requests} 个请求`
+      );
+      nav("/");
+    } catch (e: any) {
+      toast.error("URL 导入失败: " + String(e));
+    } finally {
+      setUrlLoading(false);
     }
   };
 
@@ -106,6 +147,16 @@ export function ImportPage() {
           }`}
         >
           JSON 备份
+        </button>
+        <button
+          onClick={() => setMode("openapi")}
+          className={`h-8 px-3 text-xs rounded-md ${
+            mode === "openapi"
+              ? "bg-primary-50 text-primary-700 border border-primary-200"
+              : "text-gray-600 hover:bg-gray-100"
+          }`}
+        >
+          OpenAPI
         </button>
       </div>
 
@@ -163,6 +214,50 @@ export function ImportPage() {
               <FileJson className="h-3.5 w-3.5" />
               导入 JSON
             </Button>
+          </div>
+        </div>
+      )}
+
+      {mode === "openapi" && (
+        <div className="space-y-3">
+          <div className="bg-white border border-gray-100 rounded-xl p-4 space-y-3">
+            <div className="text-xs text-gray-500">
+              粘贴 OpenAPI 3.0 / 3.1 文档（YAML 或 JSON）。将按 tags 自动创建集合与请求，
+              servers[0] 生成环境 base_url。
+            </div>
+            <CodeEditor
+              value={openapiText}
+              onChange={setOpenapiText}
+              language="yaml"
+              height="240px"
+            />
+            <div className="flex justify-end">
+              <Button variant="primary" onClick={importOpenapi}>
+                <FileCode2 className="h-3.5 w-3.5" />
+                导入 OpenAPI
+              </Button>
+            </div>
+          </div>
+
+          <div className="bg-white border border-gray-100 rounded-xl p-4 space-y-3">
+            <div className="text-xs text-gray-500">
+              或者直接输入文档地址（如 http://localhost:8080/v3/api-docs）抓取导入：
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                value={openapiUrl}
+                onChange={(e) => setOpenapiUrl(e.target.value)}
+                placeholder="https://api.example.com/openapi.json"
+                className="flex-1 font-mono text-xs"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") importOpenapiByUrl();
+                }}
+              />
+              <Button variant="outline" onClick={importOpenapiByUrl} disabled={urlLoading}>
+                <Globe className="h-3.5 w-3.5" />
+                {urlLoading ? "抓取中..." : "URL 导入"}
+              </Button>
+            </div>
           </div>
         </div>
       )}

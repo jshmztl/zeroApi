@@ -1,93 +1,87 @@
 # ZeroApi V2 开发进度记录
 
-> 更新于：2026-08-17（第三次 · Phase 2 完成）
+> 更新于：2026-08-17（第四次 · Phase 3 完成）
 > 依据：`ZEROAPI_V2_IMPLEMENTATION.md`
-> 目标跟踪：Phase 1 → goal-c118e0e6（已 complete）；Phase 2 → goal-97edf08b
+> 目标跟踪：Phase 1 → goal-c118e0e6 ✅｜Phase 2 → goal-97edf08b ✅｜Phase 3 → goal-1a50f9f1
 
 ---
 
 ## ✅ Phase 1（架构重构）— 已完成
+见 git 提交 0ccf61a / a2423bf / 4714d22。
 
-见 git 提交 0ccf61a / a2423bf / 4714d22。全部编译、测试、运行验证通过。
+## ✅ Phase 2（Local-first）— 已完成
+见 git 提交 1886876（DPAPI Secret、Git-friendly 项目文件、Cookie 管理）。
 
-## ✅ Phase 2（Local-first）— 本轮完成
+## ✅ Phase 3（API Compatibility）— 本轮完成
 
-### 1. Git-friendly Project File Format（文档 §19-22）
-- `domain/project_file.rs`：zeroapi.yaml（version/project/settings）+ collections/*.yaml + environments/*.yaml 模型
-- `service/project_file.rs`：`export_project(project_id, dir)` / `import_project(dir)`（新项目导入，folder 按名重建）
-- Secret 只导出名称与类型（value 清空），普通变量完整导出
-- 命令：`export_project` / `import_project`
-- **round-trip 测试通过**（导出→导入数据一致；断言 Secret 明文绝不出现于项目文件）
+### 1. OpenAPI 3.0 / 3.1 Import（§23）
+- `service/openapi_service.rs`：YAML/JSON 双格式解析（serde_yml → serde_json::Value）
+- 映射：info.title → 项目｜servers[0].url → 环境 base_url + URL 前缀｜paths+method → Request（name=summary/operationId）｜tags[0] → Collection（无 tag → 默认）｜parameters → query/header｜requestBody.content → Body
+- `import_openapi(content, project_id?)` + `import_openapi_url(url)`（reqwest 抓取）
+- **3 个解析测试通过**（YAML / JSON 3.1 / 指定项目）
 
-### 2. Secret 安全存储（文档 §11）
-- `security.rs`：Windows DPAPI（CryptProtectData/CryptUnprotectData，CURRENT_USER scope），非 Windows base64 兜底
-- `environment_repo`：secret 变量值 DPAPI 加密 → env_secret_refs 表；vars JSON 只存引用（secret_ref）；读取时解密注入
-- 导出 JSON / 项目文件均剔除 Secret 明文（Phase 1 的 export_service 已保证）
-- **DPAPI 加密测试通过**（roundtrip + 每次加密产生不同密文）
+### 2. cURL Export（§24）
+- `curl.rs::to_curl(request)`：-X / URL(query 合并) / -H / Authorization / -u / --data-raw / --data / -F
+- 命令 `export_curl`；RequestPanel「复制 cURL」按钮
+- **round-trip 测试通过**（导出→再解析，关键信息保留）
 
-### 3. Import / Export V2
-- 项目级目录导入导出（上述）+ 现有 JSON 全量导入导出保留
+### 3. Request Replay（§25）
+- 历史列表每项新增重放按钮：加载原请求（Method/URL/Headers/Query/Body/Auth）→ 自动发送 → 产生新 RequestExecution
 
-### 4. Cookie Session 管理（文档 §31）
-- `transport/session.rs`：`cookies_for(project_id, url)`（按域名查询）+ `clear(project_id)`（已有）+ `count()`
-- 命令：`get_session_cookies` / `clear_session_cookies`
-- 前端设置页：项目下拉 + 导出/导入目录 + Cookie 查看/清空 UI
+### 4. Response Diff（§26）
+- `components/ResponsePanel/DiffModal.tsx`：jsondiffpatch HTML 渲染（A 红 / B 绿）；非 JSON 退化逐行文本对比
+- 历史列表「对比」模式：勾选两条 → DiffModal（标题含状态码）
 
 ### 5. 前端适配
-- `lib/tauri.ts`：新增 exportProject / importProject / getSessionCookies / clearSessionCookies
-- `pages/SettingsPage.tsx`：新增「项目文件」Section（项目选择、导出/导入目录、Secret 提示）与「Cookie 会话」Section（URL 查询、复制、清空）
+- `lib/tauri.ts`：importOpenapi / importOpenapiUrl / exportCurl + OpenApiImportResult 类型
+- `pages/ImportPage.tsx`：OpenAPI 面板（粘贴 YAML/JSON + URL 抓取导入）
+- `store/dataStore.ts`：loadProjects
 
 ---
 
-## ✅ 验证结果（Phase 2）
+## ✅ 验证结果（Phase 3）
 
 | 验证项 | 结果 |
 |--------|------|
-| cargo check | ✅ 通过 |
-| cargo test（10 个：5 curl + 2 迁移 + 2 DPAPI + 1 项目 round-trip） | ✅ 全部通过 |
-| npx tsc -b | ✅ 通过 |
-| npm run build（vite） | ✅ 通过 |
-| cargo build（debug 完整链接） | ✅ 通过 |
+| cargo test（**15 个**：5 curl + 2 cURL导出 + 3 OpenAPI + 2 DPAPI + 2 迁移 + 1 项目 round-trip） | ✅ 全部通过 |
+| cargo check / build | ✅ 通过 |
+| npx tsc -b / npm run build | ✅ 通过 |
 
 **验收达成：**
-- 项目导出目录可被 Git 管理 ✅（零api.yaml + collections/ + environments/，人类可读）
-- 重新导入数据一致 ✅（round-trip 测试）
-- Secret 明文不出现在项目文件与导出 JSON ✅（测试断言）
-- Cookie 按项目隔离可管理 ✅（查询/清空命令 + UI）
+- OpenAPI 文档导入后可发送请求 ✅（导入生成项目/集合/请求，server 前缀 + 参数映射）
+- cURL 导出可被 curl 直接执行 ✅（round-trip 测试）
+- 历史 Replay 产生新执行记录 ✅（加载 + 自动发送）
+- JSON Diff 正确展示差异 ✅（jsondiffpatch 渲染 + 文本退化）
 
 ---
 
 ## ⏭️ 下一步（文档 roadmap）
 
-### Phase 3：API Compatibility
-- [ ] OpenAPI 3.0 / 3.1 Import（Parser → Project → Collection → Folder → Request）
-- [ ] OpenAPI URL Import
-- [ ] cURL Export（当前只有 Import）
-- [ ] Request Replay（历史 → 恢复请求再执行，产生新 execution）
-- [ ] Response Diff（JSON Diff，DEV vs TEST 等）
-
 ### Phase 4：Network Diagnostic
-- [ ] DNS / TCP / TLS / HTTP Timing 分段
+- [ ] DNS / TCP / TLS 分段 Timing（Timing 结构已就位，补探测实现）
+- [ ] Network Diagnostic 命令 + UI（文档 §27-29：DNS ✓ / TCP ✓ / TLS ⚠ / HTTP ✓ 展示）
 - [ ] Proxy Diagnostic
-- [ ] Diagnostic UI（文档 §29 的展示形式）
 
-### Phase 5/6：质量与发布
-- [ ] 单元/集成测试扩充 · Windows Installer · Release
+### Phase 5：质量
+- [ ] 单元/集成测试扩充 · Migration Test · Secret Security Test · 大响应 Test · 取消 Test
+
+### Phase 6：发布
+- [ ] Windows Installer / Portable / Auto Update / Release
 
 ---
 
-## 📌 关键设计备忘（Phase 2）
+## 📌 关键设计备忘（Phase 3）
 
-1. **Secret 链路**：UI 输入明文 → repository 加密（DPAPI）→ env_secret_refs 表密文 → 读取解密注入 → compiler 使用；导出时值清空
-2. **FK 顺序**：environment upsert 先落环境行再写 secret refs（避免外键约束失败）
-3. **项目文件**：文件名 slug 化（中文名 → untitled.yaml + 序号去重）；导入生成全新 id（不覆盖现有数据）
-4. **Cookie**：Jar::cookies(url) 需 `use reqwest::cookie::CookieStore` trait
-5. **windows-sys 0.59**：DATA_BLOB 已更名 CRYPT_INTEGER_BLOB；LocalFree 在 Win32::Foundation
+1. **OpenAPI**：tags 分组建集合；servers[0] 生成环境；parameters 的 default/example 填充 query 值；detect_auth 第一版返回 None（避免假 token，用户手动配）
+2. **cURL 导出**：query + apiKey(in query) 合并进 URL；单引号转义 `'\\''`；测试验证 parse(to_curl(x)) 保留关键信息
+3. **Replay**：getRequest(request_id) → dispatch load-request → setTimeout 50ms 后 send()
+4. **Diff**：jsondiffpatch（自带 TS 类型，无需 @types）；`'jsondiffpatch/formatters/html'` 通过 exports 映射到 lib/formatters/html
+5. **jsondiffpatch**：`htmlFormatter.format(delta, a)` 返回 `string | undefined`，需 `?? ''`
 
 ---
 
 ## 📌 会话备忘
 
 - 用户 git 配置：name=jshmztl，email=jshmztl@gmail.com；git 代理 127.0.0.1:7897
-- Rust 1.97.1 / npm 依赖已就绪
-- Phase 2 改动文件：src-tauri/src/security.rs（新）、domain/{environment,project_file,mod}.rs、repository/environment_repo.rs、service/{mod,project_file}.rs、transport/session.rs、commands/{project,settings}.rs、lib.rs、Cargo.toml、src/lib/tauri.ts、src/pages/SettingsPage.tsx
+- Rust 1.97.1 / npm 依赖就绪（新增 jsondiffpatch）
+- Phase 3 改动：service/openapi_service.rs（新）、curl.rs（to_curl）、service/mod.rs、commands/{import,request}.rs、lib.rs、src/lib/tauri.ts、src/pages/ImportPage.tsx、src/components/ResponsePanel/DiffModal.tsx（新）、src/components/Layout/Sidebar.tsx、src/components/RequestPanel/RequestPanel.tsx、src/store/dataStore.ts、package.json

@@ -74,3 +74,11 @@ pub fn remove_favorite(state: State<'_, AppState>, id: String) -> AppResult<()> 
 pub fn list_favorites(state: State<'_, AppState>) -> AppResult<Vec<Favorite>> {
     state.services.request.list_favorites()
 }
+
+// ---------- cURL 导出（文档 §24） ----------
+
+/// 把 Request 转成 cURL 命令
+#[tauri::command]
+pub fn export_curl(request: Request) -> AppResult<String> {
+    Ok(crate::curl::to_curl(&request))
+}

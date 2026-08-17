@@ -8,6 +8,7 @@ pub mod environment_service;
 pub mod export_service;
 pub mod history_service;
 pub mod import_service;
+pub mod openapi_service;
 pub mod project_file;
 pub mod project_service;
 pub mod request_service;
@@ -26,6 +27,7 @@ pub use environment_service::*;
 pub use export_service::*;
 pub use history_service::*;
 pub use import_service::*;
+pub use openapi_service::*;
 pub use project_file::*;
 pub use project_service::*;
 pub use request_service::*;
@@ -42,6 +44,7 @@ pub struct Services {
     pub history: HistoryService,
     pub import: ImportService,
     pub export: ExportService,
+    pub openapi: OpenApiService,
     pub settings: SettingsService,
 }
 
@@ -69,6 +72,7 @@ impl Services {
             history: HistoryService::new(repos),
             import: ImportService::new(db.clone(), repos),
             export: ExportService::new(repos),
+            openapi: OpenApiService::new(db.clone(), repos),
             settings: SettingsService::new(repos),
         }
     }

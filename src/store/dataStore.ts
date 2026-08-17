@@ -7,6 +7,7 @@ import type {
   Folder,
   Environment,
   Request,
+  Project,
 } from '@/types';
 
 interface DataState {
@@ -16,6 +17,7 @@ interface DataState {
   folders: Folder[];
   requests: Request[];
   environments: Environment[];
+  projects: Project[];
   activeEnvId: string | null;
 
   loadAll: () => Promise<void>;
@@ -25,6 +27,7 @@ interface DataState {
   loadFolders: (collectionId?: string) => Promise<void>;
   loadRequests: (collectionId?: string) => Promise<void>;
   loadEnvironments: () => Promise<void>;
+  loadProjects: () => Promise<void>;
 
   clearHistory: () => Promise<void>;
   removeHistory: (id: string) => Promise<void>;
@@ -41,6 +44,7 @@ export const useDataStore = create<DataState>((set, get) => ({
   folders: [],
   requests: [],
   environments: [],
+  projects: [],
   activeEnvId: null,
 
   loadAll: async () => {
@@ -100,6 +104,14 @@ export const useDataStore = create<DataState>((set, get) => ({
       set({ environments: e, activeEnvId: active?.id ?? null });
     } catch (err) {
       console.error(err);
+    }
+  },
+  loadProjects: async () => {
+    try {
+      const p = await tauri.listProjects();
+      set({ projects: p });
+    } catch (e) {
+      console.error(e);
     }
   },
   clearHistory: async () => {

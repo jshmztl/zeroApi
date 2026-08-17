@@ -242,6 +242,83 @@ pub fn parse(input: &str) -> AppResult<Request> {
     })
 }
 
+/// 把 Request 转成 cURL 命令（文档 §24：双向转换）
+pub fn to_curl(request: &Request) -> String {
+    let mut parts: Vec<String> = vec!["curl".to_string()];
+
+    // 方法
+    parts.push(format!("-X {}", request.method.as_str()));
+
+    // URL（合并 query 参数与 apiKey in query）
+    let mut url = request.url.clone();
+    let mut query_pairs: Vec<(String, String)> = request
+        .query
+        .iter()
+        .filter(|q| q.enabled && !q.name.is_empty())
+        .map(|q| (q.name.clone(), q.value.clone()))
+        .collect();
+    if let AuthConfig::ApiKey { key, value, location } = request.effective_auth() {
+        if location.eq_ignore_ascii_case("query") && !key.is_empty() {
+            query_pairs.push((key, value));
+        }
+    }
+    if !query_pairs.is_empty() {
+        let sep = if url.contains('?') { "&" } else { "?" };
+        let qs: Vec<String> = query_pairs
+            .iter()
+            .map(|(k, v)| format!("{}={}", k, v))
+            .collect();
+        url = format!("{}{}{}", url, sep, qs.join("&"));
+    }
+    parts.push(format!("'{}'", url.replace('\'', "'\\''")));
+
+    // Headers
+    for h in &request.headers {
+        parts.push(format!("-H '{}: {}'", h.name, h.value.replace('\'', "'\\''")));
+    }
+
+    // Auth
+    match request.effective_auth() {
+        AuthConfig::None => {}
+        AuthConfig::Bearer { token } if !token.is_empty() => {
+            parts.push(format!("-H 'Authorization: Bearer {}'", token.replace('\'', "'\\''")));
+        }
+        AuthConfig::Basic { username, password } => {
+            parts.push(format!("-u '{}:{}'", username, password));
+        }
+        AuthConfig::ApiKey { key, value, location } if location.eq_ignore_ascii_case("header") && !key.is_empty() => {
+            parts.push(format!("-H '{}: {}'", key, value));
+        }
+        _ => {}
+    }
+
+    // Body
+    match request.effective_body() {
+        RequestBody::None => {}
+        RequestBody::Raw { content, .. } if !content.is_empty() => {
+            parts.push(format!("--data-raw '{}'", content.replace('\'', "'\\''")));
+        }
+        RequestBody::UrlEncoded { items } => {
+            let pairs: Vec<String> = items
+                .iter()
+                .filter(|kv| kv.enabled && !kv.name.is_empty())
+                .map(|kv| format!("{}={}", kv.name, kv.value))
+                .collect();
+            if !pairs.is_empty() {
+                parts.push(format!("--data '{}'", pairs.join("&")));
+            }
+        }
+        RequestBody::FormData { items } => {
+            for kv in items.iter().filter(|kv| kv.enabled && !kv.name.is_empty()) {
+                parts.push(format!("-F '{}={}'", kv.name, kv.value));
+            }
+        }
+        _ => {}
+    }
+
+    parts.join(" ")
+}
+
 /// 把 token 拆成 shell token,处理引号与转义
 fn tokenize(input: &str) -> AppResult<Vec<String>> {
     let mut out = Vec::new();
@@ -367,5 +444,27 @@ mod tests {
     fn test_cookie_header() {
         let r = parse("curl -b \"sid=abc\" https://api.example.com").unwrap();
         assert!(r.headers.iter().any(|h| h.name == "Cookie" && h.value == "sid=abc"));
+    }
+
+    #[test]
+    fn test_to_curl_roundtrip() {
+        let r = parse(r#"curl -X POST -H "Content-Type: application/json" -d '{"name":"Alice"}' https://api.example.com/users"#).unwrap();
+        let c = to_curl(&r);
+        assert!(c.starts_with("curl"));
+        assert!(c.contains("-X POST"));
+        assert!(c.contains("https://api.example.com/users"));
+        // 再解析回去，关键信息保留
+        let r2 = parse(&c).unwrap();
+        assert_eq!(r2.method, r.method);
+        assert_eq!(r2.url, r.url);
+        assert!(r2.headers.iter().any(|h| h.name == "Content-Type"));
+    }
+
+    #[test]
+    fn test_to_curl_query_and_auth() {
+        let r = parse("curl -G -d \"a=1\" -u admin:secret https://api.example.com").unwrap();
+        let c = to_curl(&r);
+        assert!(c.contains("-u 'admin:secret'"));
+        assert!(c.contains("a=1"));
     }
 }

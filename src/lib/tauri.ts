@@ -91,6 +91,15 @@ export const tauri = {
   importJson: (content: string) =>
     invoke<ImportPayload>("import_json", { args: { content } }),
   exportJson: () => invoke<string>("export_json"),
+  /** 导入 OpenAPI 3.0/3.1（YAML/JSON）；返回导入结果 */
+  importOpenapi: (content: string, projectId?: string) =>
+    invoke<OpenApiImportResult>("import_openapi", { content, projectId }),
+  /** 从 URL 抓取并导入 OpenAPI 文档 */
+  importOpenapiUrl: (url: string, projectId?: string) =>
+    invoke<OpenApiImportResult>("import_openapi_url", { url, projectId }),
+  /** Request → cURL 命令 */
+  exportCurl: (request: Request) =>
+    invoke<string>("export_curl", { request }),
 
   // ---- Settings ----
   getSettings: () => invoke<Settings>("get_settings"),
@@ -108,3 +117,11 @@ export const tauri = {
 };
 
 export type { ExportPayload };
+
+/** OpenAPI 导入结果 */
+export interface OpenApiImportResult {
+  project_id: string;
+  project_name: string;
+  collections: number;
+  requests: number;
+}

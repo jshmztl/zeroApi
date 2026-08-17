@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Send, Star, X } from 'lucide-react';
+import { Send, Star, X, TerminalSquare } from 'lucide-react';
 import { useRequestStore } from '@/store/requestStore';
 import { useDataStore } from '@/store/dataStore';
 import { Button } from '@/components/ui/Button';
@@ -15,7 +15,7 @@ import { CollectionDialog } from '@/components/Sidebar/CollectionDialog';
 import { HTTP_METHODS } from '@/types';
 import type { Collection } from '@/types';
 import { nanoid } from '@/lib/nanoid';
-import { buildFullUrl } from '@/lib/formatter';
+import { buildFullUrl, copyToClipboard } from '@/lib/formatter';
 import { cn } from '@/lib/utils';
 
 const METHOD_OPTIONS = HTTP_METHODS.map((m) => ({
@@ -111,6 +111,20 @@ export function RequestPanel() {
       toast.success('已加入收藏');
     } catch (e: any) {
       toast.error('收藏失败: ' + String(e));
+    }
+  };
+
+  const copyCurl = async () => {
+    if (!request.url.trim()) {
+      toast.error('请求为空,无法生成 cURL');
+      return;
+    }
+    try {
+      const c = await tauri.exportCurl(request);
+      const ok = await copyToClipboard(c);
+      toast[ok ? 'success' : 'error'](ok ? '已复制 cURL 命令' : '复制失败');
+    } catch (e: any) {
+      toast.error('生成 cURL 失败: ' + String(e));
     }
   };
 
@@ -215,6 +229,11 @@ export function RequestPanel() {
         {/* 收藏 */}
         <Button id="zeroapi-fav-btn" variant="outline" onClick={favorite} title="Ctrl+S 收藏">
           <Star className="h-3.5 w-3.5" />
+        </Button>
+
+        {/* 复制 cURL */}
+        <Button variant="outline" onClick={copyCurl} title="复制为 cURL 命令">
+          <TerminalSquare className="h-3.5 w-3.5" />
         </Button>
 
         {/* 保存 */}
