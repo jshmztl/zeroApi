@@ -3,49 +3,50 @@
 @tailwind utilities;
 
 @layer base {
+  /* ===== Ink & Signal · 仪器控制台 双主题色板 ===== */
   :root {
-    --background: 150 30% 98%;
-    --foreground: 220 20% 10%;
+    --background: 48 22% 96%;
+    --foreground: 60 8% 12%;
     --card: 0 0% 100%;
-    --card-foreground: 220 20% 10%;
+    --card-foreground: 60 8% 12%;
     --popover: 0 0% 100%;
-    --popover-foreground: 220 20% 10%;
-    --primary: 158 64% 40%;
+    --popover-foreground: 60 8% 12%;
+    --primary: 196 78% 47%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 220 20% 10%;
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 46%;
-    --accent: 158 64% 95%;
-    --accent-foreground: 158 64% 25%;
-    --destructive: 0 84% 60%;
+    --secondary: 45 14% 93%;
+    --secondary-foreground: 60 8% 18%;
+    --muted: 45 14% 93%;
+    --muted-foreground: 45 5% 42%;
+    --accent: 196 78% 95%;
+    --accent-foreground: 196 72% 28%;
+    --destructive: 350 88% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 158 64% 40%;
-    --radius: 0.625rem;
+    --border: 45 8% 87%;
+    --input: 45 8% 87%;
+    --ring: 196 80% 50%;
+    --radius: 0.5rem;
   }
 
   .dark {
-    --background: 222 28% 7%;
-    --foreground: 0 0% 98%;
-    --card: 222 24% 10%;
-    --card-foreground: 0 0% 98%;
-    --popover: 222 24% 10%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 158 64% 45%;
-    --primary-foreground: 222 28% 7%;
-    --secondary: 222 20% 15%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 222 20% 15%;
-    --muted-foreground: 220 9% 65%;
-    --accent: 158 45% 16%;
-    --accent-foreground: 158 64% 75%;
-    --destructive: 0 62% 50%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 222 20% 17%;
-    --input: 222 20% 17%;
-    --ring: 158 64% 45%;
+    --background: 90 7% 6%;
+    --foreground: 45 25% 93%;
+    --card: 90 8% 9%;
+    --card-foreground: 45 25% 93%;
+    --popover: 90 8% 10%;
+    --popover-foreground: 45 25% 93%;
+    --primary: 196 70% 52%;
+    --primary-foreground: 196 60% 8%;
+    --secondary: 90 6% 13%;
+    --secondary-foreground: 45 25% 93%;
+    --muted: 90 6% 13%;
+    --muted-foreground: 60 3% 46%;
+    --accent: 196 55% 13%;
+    --accent-foreground: 193 92% 72%;
+    --destructive: 350 82% 58%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 90 5% 16%;
+    --input: 90 5% 16%;
+    --ring: 196 80% 56%;
   }
 
   * {
@@ -60,19 +61,32 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: "Inter", "PingFang SC", "Hiragino Sans GB",
+    font-family: "Chivo Variable", "PingFang SC", "Hiragino Sans GB",
       "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI",
       sans-serif;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-    /* 主背景柔和渐变 */
+    /* 蓝图网格 + 磷光信号辉光：仪器控制台的画面基调 */
+    --grid-size: 42px;
     background-image:
-      radial-gradient(1200px 600px at 80% -10%, hsl(var(--primary) / 0.06), transparent 60%),
-      radial-gradient(900px 500px at -10% 110%, hsl(var(--primary) / 0.05), transparent 55%);
+      radial-gradient(900px 520px at 82% -8%, hsl(var(--primary) / 0.10), transparent 58%),
+      radial-gradient(720px 420px at -8% 112%, hsl(193 70% 50% / 0.06), transparent 55%),
+      repeating-linear-gradient(0deg, hsl(0 0% 0% / 0.028) 0 1px, transparent 1px var(--grid-size)),
+      repeating-linear-gradient(90deg, hsl(0 0% 0% / 0.028) 0 1px, transparent 1px var(--grid-size)),
+      var(--background);
     background-attachment: fixed;
   }
 
+  .dark body {
+    background-image:
+      radial-gradient(900px 520px at 82% -8%, hsl(var(--ring) / 0.12), transparent 58%),
+      radial-gradient(720px 420px at -8% 112%, hsl(193 70% 50% / 0.05), transparent 55%),
+      repeating-linear-gradient(0deg, hsl(0 0% 100% / 0.02) 0 1px, transparent 1px var(--grid-size)),
+      repeating-linear-gradient(90deg, hsl(0 0% 100% / 0.02) 0 1px, transparent 1px var(--grid-size)),
+      var(--background);
+  }
+
   ::selection {
-    @apply bg-primary-500/20 text-foreground;
+    @apply bg-primary-500/25 text-foreground;
   }
 
   ::-webkit-scrollbar {
@@ -83,14 +97,21 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    @apply bg-gray-300/70 dark:bg-gray-700/70 rounded-full border-2 border-transparent bg-clip-padding;
+    @apply bg-gray-400/40 dark:bg-gray-700/60 rounded-full border-2 border-transparent bg-clip-padding;
   }
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-gray-400/80 dark:bg-gray-600/80;
+    @apply bg-gray-500/50 dark:bg-gray-600/70;
   }
 
-  code, pre, .font-mono {
-    font-family: "JetBrains Mono", "Fira Code", Consolas, Monaco, monospace;
+  code, pre, .font-mono, .mono-data {
+    font-family: "JetBrains Mono Variable", "JetBrains Mono", "Fira Code",
+      Consolas, Monaco, monospace;
+  }
+
+  /* 标题用 Saira：更"表壳/型号标签"的仪器感 */
+  h1, h2, h3, .font-display {
+    font-family: "Saira Variable", "PingFang SC", "Microsoft YaHei", sans-serif;
+    letter-spacing: 0.01em;
   }
 }
 
@@ -99,44 +120,59 @@
     scrollbar-width: thin;
   }
 
-  .glass {
-    background: rgba(255, 255, 255, 0.72);
-    backdrop-filter: blur(12px) saturate(1.4);
-    -webkit-backdrop-filter: blur(12px) saturate(1.4);
-  }
-  .dark .glass {
-    background: rgba(15, 18, 26, 0.72);
+  /* 凹陷的仪器面板：内阴影衬托画布 */
+  .z-panel {
+    @apply rounded-xl bg-card border border-border;
+    box-shadow: inset 0 1px 0 hsl(var(--border) / 0.6),
+      inset 0 0 0 1px hsl(var(--primary) / 0.04), 0 1px 2px rgb(0 0 0 / 0.06);
   }
 
-  /* 阴影层级 */
+  .glass {
+    background: rgba(255, 255, 255, 0.82);
+    backdrop-filter: blur(14px) saturate(1.5);
+    -webkit-backdrop-filter: blur(14px) saturate(1.5);
+  }
+  .dark .glass {
+    background: rgba(14, 17, 16, 0.72);
+  }
+
+  /* 阴影层级（石墨 + 磷光） */
   .shadow-soft {
-    box-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 12px rgb(0 0 0 / 0.06);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.05), 0 6px 14px rgb(0 0 0 / 0.07);
   }
   .shadow-lift {
-    box-shadow: 0 2px 4px rgb(0 0 0 / 0.05), 0 8px 24px rgb(0 0 0 / 0.09);
+    box-shadow: 0 2px 6px rgb(0 0 0 / 0.06), 0 14px 34px rgb(0 0 0 / 0.12);
   }
   .shadow-glow {
-    box-shadow: 0 0 0 1px hsl(var(--primary) / 0.15), 0 4px 20px hsl(var(--primary) / 0.18);
+    box-shadow: 0 0 0 1px hsl(var(--ring) / 0.18), 0 6px 24px hsl(var(--ring) / 0.22);
+  }
+
+  /* 磷光状态灯：活动/传输信号 */
+  .signal-lamp {
+    @apply inline-block rounded-full bg-primary-500;
+    width: 7px;
+    height: 7px;
+    box-shadow: 0 0 0 3px hsl(var(--ring) / 0.2), 0 0 10px hsl(var(--ring) / 0.6);
   }
 }
 
 @layer components {
   .z-card {
-    @apply bg-card border border-border rounded-xl shadow-soft transition-shadow hover:shadow-lift;
+    @apply z-panel transition-shadow hover:shadow-lift;
   }
   .z-input {
-    @apply h-9 px-3 text-sm bg-background border border-input rounded-lg
+    @apply h-9 px-3 text-sm bg-background/60 border border-input rounded-md
       focus:outline-none focus:ring-2 focus:ring-primary-500/25 focus:border-primary-500
       placeholder:text-muted-foreground/70 transition-all;
   }
   .z-btn {
     @apply inline-flex items-center justify-center gap-1.5 h-9 px-3.5 text-sm
-      font-medium rounded-lg transition-all duration-150 active:scale-[0.97]
+      font-medium rounded-md transition-all duration-150 active:scale-[0.97]
       focus:outline-none focus:ring-2 focus:ring-primary-500/25 disabled:opacity-50
       disabled:pointer-events-none;
   }
   .z-btn-primary {
-    @apply z-btn bg-primary-500 text-white hover:bg-primary-600 shadow-soft;
+    @apply z-btn bg-primary-500 text-primary-foreground hover:bg-primary-600 shadow-soft;
   }
   .z-btn-ghost {
     @apply z-btn text-muted-foreground hover:text-foreground hover:bg-secondary;
@@ -145,7 +181,7 @@
     @apply z-btn border border-input bg-card text-foreground hover:bg-secondary hover:border-primary-300;
   }
   .z-btn-danger {
-    @apply z-btn bg-white dark:bg-gray-900 border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40;
+    @apply z-btn bg-card border border-red-200 dark:border-red-900/60 text-red-600 dark:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40;
   }
   .z-tab {
     @apply px-3 h-9 text-sm font-medium text-muted-foreground hover:text-foreground
@@ -155,8 +191,10 @@
     @apply text-primary-600 dark:text-primary-400 border-primary-500;
   }
 
-  /* 方法徽章 */
+  /* 方法徽章：磷光墨色芯片 */
   .method-badge {
-    @apply inline-flex items-center justify-center px-1.5 h-5 text-[10px] font-bold rounded-md text-white;
+    @apply inline-flex items-center justify-center px-1.5 h-5 text-[10px] font-bold rounded text-white;
+    background-color: var(--method-bg, #757e70);
+    box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.12);
   }
 }

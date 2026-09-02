@@ -16,26 +16,40 @@ export default {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         primary: {
-          50: "#ECFDF5",
-          100: "#D1FAE5",
-          200: "#A7F3D0",
-          300: "#6EE7B7",
-          400: "#34D399",
-          500: "#10B981",
-          600: "#059669",
-          700: "#047857",
-          800: "#065F46",
-          900: "#064E3B",
-          DEFAULT: "#10B981",
-          foreground: "#FFFFFF",
+          50: "#EDFBFF",
+          100: "#D2F1FC",
+          200: "#A9E4F8",
+          300: "#71CFEF",
+          400: "#3FB7E0",
+          500: "#1FA3D2",
+          600: "#1286B8",
+          700: "#116280",
+          800: "#144F66",
+          900: "#153F52",
+          DEFAULT: "#1FA3D2",
+          foreground: "#0A2733",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
           foreground: "hsl(var(--secondary-foreground))",
         },
         destructive: {
-          DEFAULT: "#EF4444",
+          DEFAULT: "#F0435A",
           foreground: "#FFFFFF",
+        },
+        // 中性色下沉为"墨水/石墨"色阶，作为仪器控制台的画布基准
+        gray: {
+          50: "#F5F6F4",
+          100: "#E9EBE7",
+          200: "#D6DAD2",
+          300: "#BBC2B6",
+          400: "#969E90",
+          500: "#757E70",
+          600: "#585F55",
+          700: "#3F443D",
+          800: "#272B27",
+          900: "#171A18",
+          950: "#0E1110",
         },
         muted: {
           DEFAULT: "hsl(var(--muted))",
@@ -53,25 +67,27 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // HTTP 方法颜色
+        // HTTP 方法颜色（语义色，独立于主强调色）
         method: {
-          get: "#10B981",
-          post: "#3B82F6",
-          put: "#F59E0B",
-          patch: "#8B5CF6",
-          delete: "#EF4444",
-          head: "#6B7280",
-          options: "#6B7280",
+          get: "#43D6A0",
+          post: "#5C9BEF",
+          put: "#F0A53C",
+          patch: "#A88CF0",
+          delete: "#F0605F",
+          head: "#96A0AC",
+          options: "#96A0AC",
         },
-        // 语义色
-        success: "#10B981",
-        warning: "#F59E0B",
-        danger: "#EF4444",
-        info: "#3B82F6",
+        // 语义/状态色
+        success: "#43D6A0",
+        warning: "#F0A53C",
+        danger: "#F0605F",
+        info: "#5C9BEF",
       },
       fontFamily: {
+        // 仪器控制台：Saira(表壳/标题) + Chivo(正文) + JetBrains Mono(数据/代码)
+        display: ["Saira Variable", "PingFang SC", "Microsoft YaHei", "sans-serif"],
         sans: [
-          "Inter",
+          "Chivo Variable",
           "PingFang SC",
           "Hiragino Sans GB",
           "Microsoft YaHei",
@@ -82,6 +98,7 @@ export default {
           "sans-serif",
         ],
         mono: [
+          "JetBrains Mono Variable",
           "JetBrains Mono",
           "Fira Code",
           "Consolas",
@@ -90,10 +107,10 @@ export default {
         ],
       },
       borderRadius: {
-        lg: "12px",
-        md: "8px",
+        lg: "10px",
+        md: "7px",
         sm: "4px",
-        xl: "16px",
+        xl: "14px",
       },
       keyframes: {
         "accordion-down": {
@@ -111,12 +128,24 @@ export default {
         "spin-slow": {
           to: { transform: "rotate(360deg)" },
         },
+        // 磷光信号脉冲：活动状态灯/传输中
+        "signal-pulse": {
+          "0%, 100%": { opacity: "1", "box-shadow": "0 0 0 0 hsl(var(--ring) / 0.4)" },
+          "50%": { opacity: "0.6", "box-shadow": "0 0 0 4px hsl(var(--ring) / 0)" },
+        },
+        // 网络轨迹描线，模拟示波器扫描
+        trace: {
+          "0%": { transform: "translateX(-100%)" },
+          "100%": { transform: "translateX(220%)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "fade-in": "fade-in 200ms ease-out",
         "spin-slow": "spin-slow 1s linear infinite",
+        "signal-pulse": "signal-pulse 1.6s ease-in-out infinite",
+        trace: "trace 1.8s linear infinite",
       },
     },
   },

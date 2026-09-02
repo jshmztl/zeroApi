@@ -77,7 +77,7 @@ export function ResponsePanel() {
 
   if (error) {
     return (
-      <div className="h-full flex items-center justify-center bg-red-50/30 dark:bg-red-950/20">
+      <div className="z-panel h-full flex items-center justify-center bg-red-50/40 dark:bg-red-950/20">
         <div className="text-center">
           <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
             <AlertCircle className="h-6 w-6 text-red-500" />
@@ -93,7 +93,7 @@ export function ResponsePanel() {
 
   if (loading) {
     return (
-      <div className="h-full flex items-center justify-center dark:bg-gray-900">
+      <div className="z-panel h-full flex items-center justify-center">
         <div className="text-center text-gray-400 dark:text-gray-500">
           <div className="w-8 h-8 mx-auto mb-2 border-2 border-primary-200 dark:border-primary-800 border-t-primary-500 rounded-full animate-spin" />
           <div className="text-xs">请求中...</div>
@@ -104,7 +104,7 @@ export function ResponsePanel() {
 
   if (!response) {
     return (
-      <div className="h-full flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+      <div className="z-panel h-full flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center text-gray-400 dark:text-gray-500 max-w-sm">
           <div className="text-5xl mb-3">🚀</div>
           <div className="text-sm font-medium text-gray-600 dark:text-gray-400">还没有响应</div>
@@ -123,7 +123,7 @@ export function ResponsePanel() {
   }
 
   return (
-    <div className="h-full flex flex-col bg-card dark:bg-gray-900">
+    <div className="z-panel h-full flex flex-col bg-card/70 dark:bg-gray-900/70 overflow-hidden">
       {/* 状态栏 */}
       <div className="px-4 py-2 border-b border-border flex items-center gap-3 text-xs">
         <span

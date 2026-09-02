@@ -9,6 +9,7 @@ use std::sync::Arc;
 use reqwest::cookie::CookieStore;
 use tokio::sync::Mutex;
 
+use crate::AppResult;
 use crate::transport::HttpTransport;
 
 /// 一次会话：独立 CookieJar + 缓存的 HTTP Client
@@ -30,18 +31,20 @@ impl SessionManager {
     }
 
     /// 获取（或创建）指定 Project 的会话
-    pub async fn get(&self, project_id: &str, transport: &HttpTransport) -> Arc<Session> {
+    pub async fn get(
+        &self,
+        project_id: &str,
+        transport: &HttpTransport,
+    ) -> AppResult<Arc<Session>> {
         let mut map = self.sessions.lock().await;
         if let Some(s) = map.get(project_id) {
-            return s.clone();
+            return Ok(s.clone());
         }
         let jar = Arc::new(reqwest::cookie::Jar::default());
-        let client = transport
-            .build_client(Some(jar.clone()))
-            .expect("构建 HTTP Client 失败");
+        let client = transport.build_client(Some(jar.clone()))?;
         let session = Arc::new(Session { jar, client });
         map.insert(project_id.to_string(), session.clone());
-        session
+        Ok(session)
     }
 
     /// 清除指定 Project 的会话（Cookie 失效）

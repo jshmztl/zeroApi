@@ -60,6 +60,11 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 自动更新签名密钥（发布硬性要求）：在仓库 Settings→Secrets and variables→Actions 配置
+          # TAURI_SIGNING_PRIVATE_KEY ：私钥文件内容（zerokey.key）
+          # TAURI_SIGNING_PRIVATE_KEY_PASSWORD ：私钥密码（.signing/PASSWORD.txt）
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "ZeroApi ${{ github.ref_name }}"
@@ -71,7 +76,11 @@ jobs:
             ### 资产说明
             - `*_x64-setup.exe`  NSIS 安装版(推荐)
             - `*_x64-setup.msi`  MSI 安装版
-            - `*_x64.exe`  便携版(解压即用)
+            - `*_x64.exe`  便携版(解压即用,零安装)
+            - `latest.json`  自动更新签名清单(应用内更新依赖)
+
+            > 若 `latest.json` 缺失,请检查仓库中是否已配置
+            > `TAURI_SIGNING_PRIVATE_KEY` / `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` 两个 Actions Secret。
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}

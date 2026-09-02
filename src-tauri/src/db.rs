@@ -34,12 +34,14 @@ impl Database {
 
     /// 执行版本化迁移（启动时调用一次）
     pub fn migrate(&self) -> AppResult<()> {
-        let conn = self.conn.lock().unwrap();
+        // Mutex 中毒仅表示前一次持锁期间发生 panic；SQLite 事务原子性保证，
+        // 通过 into_inner 取回底层连接仍可继续使用，避免此处直接 panic。
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         migrations::run(&conn)
     }
 
     /// 访问底层连接（repository 层使用）
     pub fn conn(&self) -> std::sync::MutexGuard<'_, Connection> {
-        self.conn.lock().unwrap()
+        self.conn.lock().unwrap_or_else(|e| e.into_inner())
     }
 }

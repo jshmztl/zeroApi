@@ -71,7 +71,7 @@ impl RequestService {
             .get(&request.collection_id)?
             .map(|c| c.project_id)
             .unwrap_or_else(|| DEFAULT_PROJECT_ID.to_string());
-        let session = self.sessions.get(&project_id, &self.transport).await;
+        let session = self.sessions.get(&project_id, &self.transport).await?;
 
         // 取消注册
         let cid = client_id.unwrap_or_else(|| Uuid::new_v4().to_string());

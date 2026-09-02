@@ -66,11 +66,11 @@ export function DiagnosticsPage() {
       </button>
 
       <div className="flex items-center gap-2">
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white shadow-md shadow-emerald-500/20">
+        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-400 to-primary-600 flex items-center justify-center text-white shadow-md shadow-primary-500/25">
           <Activity className="h-4.5 w-4.5" />
         </div>
         <div>
-          <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">网络诊断</h1>
+          <h1 className="text-lg font-display font-semibold text-gray-900 dark:text-gray-100">网络诊断</h1>
           <p className="text-xs text-gray-500 dark:text-gray-500">
             DNS → TCP → TLS → HTTP 全链路探测（内网环境友好）
           </p>

@@ -35,7 +35,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["msi", "nsis"],
+    "targets": ["msi", "nsis", "portable"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -65,7 +65,7 @@
       "active": true,
       "dialog": true,
       "endpoints": ["https://github.com/jshmztl/zeroApi/releases/latest/download/latest.json"],
-      "pubkey": "",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDREQTkwOEEwQUYzNzVERUMKUldUc1hUZXZvQWlwVFRGbDhqNHhvMDlNTjJPakl4elBGYWdQU2NKVVJ6a3Q0TXd0UjJ2b1h2QlkK",
       "windows": {
         "installMode": "passive"
       }

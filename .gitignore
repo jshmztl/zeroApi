@@ -32,6 +32,9 @@ dist-ssr
 src-tauri/target
 src-tauri/gen/schemas
 
+# 自动更新签名私钥与密码（禁止提交！）
+src-tauri/.signing/
+
 # TS Build artifacts
 *.tsbuildinfo
 vite.config.d.ts

@@ -42,9 +42,9 @@ export function HomePage() {
   }, []);
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col p-3 gap-3">
       <RequestPanel />
-      <div className="flex-1 min-h-0 border-t border-gray-200">
+      <div className="flex-1 min-h-0">
         <ResponsePanel />
       </div>
     </div>

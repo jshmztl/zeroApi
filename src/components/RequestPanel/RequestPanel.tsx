@@ -23,16 +23,16 @@ const METHOD_OPTIONS = HTTP_METHODS.map((m) => ({
   label: m,
   color:
     m === 'GET'
-      ? '#10B981'
+      ? '#43D6A0'
       : m === 'POST'
-        ? '#3B82F6'
+        ? '#5C9BEF'
         : m === 'PUT'
-          ? '#F59E0B'
+          ? '#F0A53C'
           : m === 'PATCH'
-            ? '#8B5CF6'
+            ? '#A88CF0'
             : m === 'DELETE'
-              ? '#EF4444'
-              : '#6B7280',
+              ? '#F0605F'
+              : '#96A0AC',
 }));
 
 type TabKey = 'params' | 'headers' | 'body' | 'auth';
@@ -176,7 +176,13 @@ export function RequestPanel() {
   const fullUrl = buildFullUrl(request.url, request.query);
 
   return (
-    <div className="flex flex-col bg-card dark:bg-gray-900">
+    <div className="z-panel flex flex-col overflow-hidden bg-card/70 dark:bg-gray-900/70">
+      {/* 传输中：示波器描线扫过面板顶部 */}
+      {loading && (
+        <div className="relative h-[2px] overflow-hidden bg-primary-500/0">
+          <div className="absolute top-0 bottom-0 w-1/2 bg-gradient-to-r from-transparent via-primary-400/80 to-transparent animate-trace" />
+        </div>
+      )}
       {/* 顶部：名称 + 方法 + URL + 操作按钮 */}
       <div className="px-4 py-3 border-b border-border flex items-center gap-2">
         {/* 请求名（必填） */}
@@ -332,15 +338,15 @@ export function RequestPanel() {
 
       {/* 状态栏 */}
       {response && (
-        <div className="px-4 py-1.5 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-3">
+        <div className="px-4 py-2 border-t border-border bg-accent/40 dark:bg-accent/20 text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-3 font-mono">
           <span
-            className={`font-mono font-semibold ${response.status >= 200 && response.status < 300 ? 'text-emerald-600 dark:text-emerald-400' : response.status >= 400 ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400'}`}
+            className={`font-mono font-semibold ${response.status >= 200 && response.status < 300 ? 'text-success' : response.status >= 400 ? 'text-danger' : 'text-gray-600 dark:text-gray-300'}`}
           >
             {response.status} {response.status_text}
           </span>
-          <span>·</span>
+          <span className="text-muted-foreground">·</span>
           <span>{response.timing?.total_ms ?? 0} ms</span>
-          <span>·</span>
+          <span className="text-muted-foreground">·</span>
           <span>{(response.size_bytes / 1024).toFixed(2)} KB</span>
         </div>
       )}

@@ -44,13 +44,14 @@ export function Topbar() {
   };
 
   return (
-    <header className="h-13 px-4 flex items-center gap-4 border-b border-border bg-card/80 backdrop-blur-xl supports-[backdrop-filter]:bg-card/70 sticky top-0 z-30">
+    <header className="h-12 px-4 flex items-center gap-4 border-b border-border bg-card/75 dark:bg-gray-900/70 backdrop-blur-xl supports-[backdrop-filter]:bg-card/70 sticky top-0 z-30">
       <Link to="/" className="flex items-center gap-2.5 mr-2 group">
-        <Logo size={26} />
-        <span className="font-semibold text-gray-900 dark:text-gray-100 tracking-tight text-[15px] group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+        <Logo size={24} />
+        <span className="font-display font-semibold tracking-tight text-[15px] text-foreground group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
           ZeroApi
         </span>
-        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 font-medium hidden sm:inline-flex">
+        <span className="hidden sm:inline-flex items-center gap-1.5 text-[9px] px-1.5 py-0.5 rounded-full bg-accent text-accent-foreground font-semibold tracking-wide">
+          <span className="signal-lamp" />
           v{version || "2"}
         </span>
       </Link>

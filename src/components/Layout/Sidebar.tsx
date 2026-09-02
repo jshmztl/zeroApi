@@ -25,6 +25,17 @@ import { nanoid } from '@/lib/nanoid';
 import type { Collection, Request } from '@/types';
 import { fullUrlDisplay } from '@/components/RequestPanel/RequestPanel';
 
+// HTTP 方法 → 仪器信号色（与语义色一致）
+const METHOD_COLORS: Record<string, string> = {
+  GET: '#43D6A0',
+  POST: '#5C9BEF',
+  PUT: '#F0A53C',
+  PATCH: '#A88CF0',
+  DELETE: '#F0605F',
+  HEAD: '#96A0AC',
+  OPTIONS: '#96A0AC',
+};
+
 type Section = 'collections' | 'history' | 'favorites';
 
 export function Sidebar() {

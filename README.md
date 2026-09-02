@@ -4,7 +4,7 @@
 >
 > 基于 Tauri 2 + Rust 构建的 Windows 桌面应用 · 包小 (~8MB) · 启动快 · 隐私安全
 
-[![Version](https://img.shields.io/badge/version-1.0.0-7FC8A9)](https://github.com/jshmztl/zeroApi/releases)
+[![Version](https://img.shields.io/badge/version-1.2.0-7FC8A9)](https://github.com/jshmztl/zeroApi/releases)
 [![Platform](https://img.shields.io/badge/platform-Windows%2011-0078D4)](https://github.com/jshmztl/zeroApi)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Tauri](https://img.shields.io/badge/Tauri-2.x-FFC131)](https://tauri.app)
