@@ -112,6 +112,9 @@ export const tauri = {
   // ---- Network Diagnostic ----
   diagnoseNetwork: (target: string) =>
     invoke<unknown>("diagnose_network", { target }),
+  /** 通过指定代理对目标做连通性诊断 */
+  diagnoseProxyNetwork: (target: string, proxy: string) =>
+    invoke<unknown>("diagnose_proxy_network", { target, proxy }),
 
   // ---- Cookie Session（按 Project 隔离） ----
   getSessionCookies: (projectId: string, url: string) =>

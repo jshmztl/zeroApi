@@ -203,6 +203,7 @@ pub fn run() {
             commands::settings::clear_session_cookies,
             // Network Diagnostic
             commands::diagnostic::diagnose_network,
+            commands::diagnostic::diagnose_proxy_network,
         ])
         .run(tauri::generate_context!())
         .expect("启动 Tauri 应用失败");

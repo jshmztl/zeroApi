@@ -113,7 +113,7 @@ pub async fn diagnose(target: &str) -> DiagnosticResult {
 }
 
 /// 解析 target 为 (scheme, host, port, path)
-fn parse_target(target: &str) -> (String, String, u16, String) {
+pub(crate) fn parse_target(target: &str) -> (String, String, u16, String) {
     if let Ok(url) = url::Url::parse(target) {
         let scheme = url.scheme().to_string();
         let host = url.host_str().unwrap_or("").to_string();

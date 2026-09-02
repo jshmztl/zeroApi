@@ -21,7 +21,7 @@ pub struct TlsResult {
     pub error: Option<String>,
 }
 
-fn build_connector() -> Result<TlsConnector, String> {
+pub(crate) fn build_connector() -> Result<TlsConnector, String> {
     let mut roots = rustls::RootCertStore::empty();
     roots.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
     let config = rustls::ClientConfig::builder()
@@ -94,7 +94,7 @@ pub async fn handshake(host: &str, port: u16, server_name: &str) -> TlsResult {
 }
 
 /// 尝试从 DER 证书提取主题（尽力而为，失败返回 None）
-fn x509_parser_subject(der: &[u8]) -> Option<String> {
+pub(crate) fn x509_parser_subject(der: &[u8]) -> Option<String> {
     // 简化：按 ASN.1 启发式查找 CN（不做完整解析，完整解析需 x509-parser）
     let text = String::from_utf8_lossy(der);
     if let Some(idx) = text.find("CN=") {

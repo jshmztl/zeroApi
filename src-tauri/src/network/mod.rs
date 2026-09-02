@@ -10,8 +10,10 @@ pub mod diagnostic;
 pub mod dns;
 pub mod tcp;
 pub mod tls;
+pub mod proxy;
 
 pub use diagnostic::{diagnose, DiagnosticResult, HttpProbeResult};
 pub use dns::{resolve, DnsResult};
 pub use tcp::{connect, TcpResult};
 pub use tls::{handshake, TlsResult};
+pub use proxy::{diagnose_proxy, ProxyProbeResult};

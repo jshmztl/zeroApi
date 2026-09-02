@@ -13,6 +13,8 @@ import {
   Globe,
   Server,
   Zap,
+  Network,
+  Waypoints,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -32,19 +34,36 @@ interface DiagResult {
   total_ms: number;
 }
 
+interface ProxyDiagResult {
+  proxy_host: string;
+  proxy_port: number;
+  proxy_tcp: { ok: boolean; port: number; ms: number; error?: string };
+  target: string;
+  scheme: string;
+  target_host: string;
+  dns: { ok: boolean; addresses: string[]; ms: number; error?: string };
+  tls?: { ok: boolean; ms: number; peer_cert_subject?: string; error?: string };
+  http?: { ok: boolean; status?: number; ms: number; error?: string };
+  total_ms: number;
+}
+
 export function DiagnosticsPage() {
   const nav = useNavigate();
+  const [mode, setMode] = React.useState<"direct" | "proxy">("direct");
   const [url, setUrl] = React.useState("https://api.github.com");
+  const [proxyUrl, setProxyUrl] = React.useState("http://127.0.0.1:7897");
   const [loading, setLoading] = React.useState(false);
   const [result, setResult] = React.useState<DiagResult | null>(null);
+  const [proxyResult, setProxyResult] = React.useState<ProxyDiagResult | null>(null);
 
-  const run = async () => {
+  const runDirect = async () => {
     if (!url.trim()) {
       toast.error("请输入目标地址");
       return;
     }
     setLoading(true);
     setResult(null);
+    setProxyResult(null);
     try {
       const r = await tauri.diagnoseNetwork(url.trim());
       setResult(r as any);
@@ -54,6 +73,30 @@ export function DiagnosticsPage() {
       setLoading(false);
     }
   };
+
+  const runProxy = async () => {
+    if (!url.trim()) {
+      toast.error("请输入目标地址");
+      return;
+    }
+    if (!proxyUrl.trim()) {
+      toast.error("请输入代理地址");
+      return;
+    }
+    setLoading(true);
+    setResult(null);
+    setProxyResult(null);
+    try {
+      const r = await tauri.diagnoseProxyNetwork(url.trim(), proxyUrl.trim());
+      setProxyResult(r as any);
+    } catch (e: any) {
+      toast.error("代理诊断失败: " + String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const run = () => (mode === "proxy" ? runProxy() : runDirect());
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-6 space-y-5">
@@ -72,13 +115,47 @@ export function DiagnosticsPage() {
         <div>
           <h1 className="text-lg font-display font-semibold text-gray-900 dark:text-gray-100">网络诊断</h1>
           <p className="text-xs text-gray-500 dark:text-gray-500">
-            DNS → TCP → TLS → HTTP 全链路探测（内网环境友好）
+            {mode === "proxy" ? "通过代理探测目标连通性（代理 TCP → CONNECT 隧道 → 经代理请求）" : "DNS → TCP → TLS → HTTP 全链路探测（内网环境友好）"}
           </p>
         </div>
       </div>
 
+      {/* 模式切换 */}
+      <div className="inline-flex rounded-xl bg-gray-100 dark:bg-gray-800 p-1 text-xs font-medium">
+        <button
+          onClick={() => setMode("direct")}
+          className={cn(
+            "px-3 py-1.5 rounded-lg transition-colors",
+            mode === "direct" ? "bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm" : "text-gray-500 dark:text-gray-400",
+          )}
+        >
+          直连诊断
+        </button>
+        <button
+          onClick={() => setMode("proxy")}
+          className={cn(
+            "px-3 py-1.5 rounded-lg transition-colors inline-flex items-center gap-1",
+            mode === "proxy" ? "bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm" : "text-gray-500 dark:text-gray-400",
+          )}
+        >
+          <Waypoints className="h-3.5 w-3.5" />
+          代理探针
+        </button>
+      </div>
+
       {/* 输入区 */}
       <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm">
+        {mode === "proxy" && (
+          <div className="flex items-center gap-2 mb-3">
+            <Network className="h-4 w-4 text-gray-400 flex-shrink-0" />
+            <Input
+              value={proxyUrl}
+              onChange={(e) => setProxyUrl(e.target.value)}
+              placeholder="http://127.0.0.1:7897"
+              className="flex-1 font-mono text-sm"
+            />
+          </div>
+        )}
         <div className="flex items-center gap-2">
           <Input
             value={url}
@@ -111,106 +188,83 @@ export function DiagnosticsPage() {
       {loading && (
         <div className="flex flex-col items-center py-12 text-gray-400">
           <Loader2 className="h-6 w-6 animate-spin mb-2" />
-          <span className="text-xs">正在探测 {url}...</span>
+          <span className="text-xs">
+            {mode === "proxy" ? `正在经代理 ${proxyUrl} 探测 ${url}...` : `正在探测 ${url}...`}
+          </span>
         </div>
       )}
 
-      {result && !loading && (
-        <div className="space-y-3 animate-fade-in">
-          {/* 目标摘要 */}
-          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div className="min-w-0">
-                <div className="text-sm font-medium text-gray-800 dark:text-gray-200 font-mono truncate">
-                  {result.target}
-                </div>
-                <div className="text-[10px] text-gray-400 mt-0.5">
-                  {result.host}:{result.port} · {result.scheme}
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                  {result.total_ms}ms
-                </div>
-                <div className="text-[10px] text-gray-400">总耗时</div>
-              </div>
-            </div>
-          </div>
+      {!loading && mode === "direct" && result && <DirectResult result={result} />}
+      {!loading && mode === "proxy" && proxyResult && <ProxyResult result={proxyResult} proxyUrl={proxyUrl} />}
+    </div>
+  );
+}
 
-          {/* 分段结果 */}
-          <DiagRow
-            icon={<Globe className="h-4 w-4" />}
-            label="DNS 解析"
-            ok={result.dns.ok}
-            detail={result.dns.addresses.join(", ") || result.dns.error}
-            ms={result.dns.ms}
-            hint={result.dns.ok ? "解析成功" : "解析失败"}
-          />
-          <DiagRow
-            icon={<Server className="h-4 w-4" />}
-            label={`TCP 连接 (:${result.tcp.port})`}
-            ok={result.tcp.ok}
-            detail={result.tcp.error}
-            ms={result.tcp.ms}
-            hint={result.tcp.ok ? "连接成功" : "连接失败"}
-          />
-          {result.tls && (
-            <DiagRow
-              icon={<ShieldCheck className="h-4 w-4" />}
-              label="TLS 握手"
-              ok={result.tls.ok}
-              detail={result.tls.peer_cert_subject || result.tls.error}
-              ms={result.tls.ms}
-              hint={result.tls.ok ? "握手成功" : "证书/握手错误"}
-              warn={!result.tls.ok}
-            />
-          )}
-          {result.http && (
-            <DiagRow
-              icon={<Zap className="h-4 w-4" />}
-              label="HTTP 探测"
-              ok={result.http.ok}
-              detail={result.http.status ? `HTTP ${result.http.status}` : result.http.error}
-              ms={result.http.ms}
-              hint={result.http.status ? `状态码 ${result.http.status}` : "请求失败"}
-              warn={result.http.status != null && result.http.status >= 400}
-            />
-          )}
-
-          {/* 失败建议 */}
-          {!result.dns.ok && (
-            <Advice
-              title="DNS 解析失败"
-              items={[
-                "检查域名拼写是否正确",
-                "尝试 ping 域名确认网络",
-                "检查系统 DNS 配置 / 代理设置",
-              ]}
-            />
-          )}
-          {result.dns.ok && !result.tcp.ok && (
-            <Advice
-              title="TCP 连接被拒绝"
-              items={[
-                "检查服务是否已启动",
-                "检查端口是否监听",
-                "检查防火墙规则",
-                "内网环境确认是否在 VPN 内",
-              ]}
-            />
-          )}
-          {result.tcp.ok && result.tls && !result.tls.ok && (
-            <Advice
-              title="TLS 证书错误"
-              items={[
-                "确认证书是否过期",
-                "内网自签名证书需在设置中关闭 SSL 验证",
-                "检查 SNI / 服务器名称是否匹配",
-              ]}
-            />
-          )}
-        </div>
+function DirectResult({ result }: { result: DiagResult }) {
+  return (
+    <div className="space-y-3 animate-fade-in">
+      <SummaryCard title={result.target} sub={`${result.host}:${result.port} · ${result.scheme}`} totalMs={result.total_ms} />
+      <DiagRow icon={<Globe className="h-4 w-4" />} label="DNS 解析" ok={result.dns.ok} detail={result.dns.addresses.join(", ") || result.dns.error} ms={result.dns.ms} hint={result.dns.ok ? "解析成功" : "解析失败"} />
+      <DiagRow icon={<Server className="h-4 w-4" />} label={`TCP 连接 (:${result.tcp.port})`} ok={result.tcp.ok} detail={result.tcp.error} ms={result.tcp.ms} hint={result.tcp.ok ? "连接成功" : "连接失败"} />
+      {result.tls && (
+        <DiagRow icon={<ShieldCheck className="h-4 w-4" />} label="TLS 握手" ok={result.tls.ok} detail={result.tls.peer_cert_subject || result.tls.error} ms={result.tls.ms} hint={result.tls.ok ? "握手成功" : "证书/握手错误"} warn={!result.tls.ok} />
       )}
+      {result.http && (
+        <DiagRow icon={<Zap className="h-4 w-4" />} label="HTTP 探测" ok={result.http.ok} detail={result.http.status ? `HTTP ${result.http.status}` : result.http.error} ms={result.http.ms} hint={result.http.status ? `状态码 ${result.http.status}` : "请求失败"} warn={result.http.status != null && result.http.status >= 400} />
+      )}
+
+      {!result.dns.ok && (
+        <Advice title="DNS 解析失败" items={["检查域名拼写是否正确", "尝试 ping 域名确认网络", "检查系统 DNS 配置 / 代理设置"]} />
+      )}
+      {result.dns.ok && !result.tcp.ok && (
+        <Advice title="TCP 连接被拒绝" items={["检查服务是否已启动", "检查端口是否监听", "检查防火墙规则", "内网环境确认是否在 VPN 内"]} />
+      )}
+      {result.tcp.ok && result.tls && !result.tls.ok && (
+        <Advice title="TLS 证书错误" items={["确认证书是否过期", "内网自签名证书需在设置中关闭 SSL 验证", "检查 SNI / 服务器名称是否匹配"]} />
+      )}
+    </div>
+  );
+}
+
+function ProxyResult({ result, proxyUrl }: { result: ProxyDiagResult; proxyUrl: string }) {
+  return (
+    <div className="space-y-3 animate-fade-in">
+      <SummaryCard title={`经 ${result.proxy_host}:${result.proxy_port} 探针`} sub={`目标 ${result.target_host} · ${result.scheme}`} totalMs={result.total_ms} />
+      <DiagRow icon={<Network className="h-4 w-4" />} label="代理 TCP 可达" ok={result.proxy_tcp.ok} detail={result.proxy_tcp.error} ms={result.proxy_tcp.ms} hint={result.proxy_tcp.ok ? "代理可连接" : "代理不可达"} />
+      <DiagRow icon={<Globe className="h-4 w-4" />} label="目标 DNS（本地对照）" ok={result.dns.ok} detail={result.dns.addresses.join(", ") || result.dns.error} ms={result.dns.ms} hint={result.dns.ok ? "解析成功" : "解析失败"} />
+      {result.tls && (
+        <DiagRow icon={<ShieldCheck className="h-4 w-4" />} label="CONNECT 隧道 + TLS" ok={result.tls.ok} detail={result.tls.peer_cert_subject || result.tls.error} ms={result.tls.ms} hint={result.tls.ok ? "隧道+握手成功" : "隧道/TLS 失败"} warn={!result.tls.ok} />
+      )}
+      {result.http && (
+        <DiagRow icon={<Zap className="h-4 w-4" />} label="经代理 HTTP" ok={result.http.ok} detail={result.http.status ? `HTTP ${result.http.status}` : result.http.error} ms={result.http.ms} hint={result.http.status ? `状态码 ${result.http.status}` : "请求失败"} warn={result.http.status != null && result.http.status >= 400} />
+      )}
+
+      {!result.proxy_tcp.ok && (
+        <Advice title="代理不可达" items={["确认代理软件（Clash/其它）已启动", "确认端口正确（如 7897/7890）", "确认代理地址格式，如 http://127.0.0.1:7897", "尝试在其它应用里验证该代理是否可用"]} />
+      )}
+      {result.proxy_tcp.ok && result.tls && !result.tls.ok && (
+        <Advice title="代理未完成 CONNECT/TLS" items={["代理是否支持 HTTPS（需要 CONNECT 方法）", "目标是否在代理规则/白名单内", "企业代理可能需要认证（暂不支持）", "尝试直连诊断确认目标本身可达"]} />
+      )}
+      {result.proxy_tcp.ok && result.http && !result.http.ok && (!result.tls || result.tls.ok) && (
+        <Advice title="经代理请求失败" items={["确认该代理能否访问目标（可能被规则拦截）", "目标若是内网地址，查看代理是否将其直连", "检查代理是否需要认证", "换目标或换代理后重试"]} />
+      )}
+    </div>
+  );
+}
+
+function SummaryCard({ title, sub, totalMs }: { title: string; sub: string; totalMs: number }) {
+  return (
+    <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm">
+      <div className="flex items-center justify-between">
+        <div className="min-w-0">
+          <div className="text-sm font-medium text-gray-800 dark:text-gray-200 font-mono truncate">{title}</div>
+          <div className="text-[10px] text-gray-400 mt-0.5">{sub}</div>
+        </div>
+        <div className="text-right">
+          <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">{totalMs}ms</div>
+          <div className="text-[10px] text-gray-400">总耗时</div>
+        </div>
+      </div>
     </div>
   );
 }
