@@ -22,6 +22,8 @@ pub struct TlsResult {
 }
 
 pub(crate) fn build_connector() -> Result<TlsConnector, String> {
+    // 直接使用 rustls 的 ClientConfig::builder() 需要进程级 CryptoProvider，幂等安装 ring
+    let _ = rustls::crypto::ring::default_provider().install_default();
     let mut roots = rustls::RootCertStore::empty();
     roots.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
     let config = rustls::ClientConfig::builder()
