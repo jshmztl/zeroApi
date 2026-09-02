@@ -34,6 +34,7 @@
     }
   },
   "bundle": {
+    "createUpdaterArtifacts": true,
     "active": true,
     "targets": ["msi", "nsis"],
     "icon": [
