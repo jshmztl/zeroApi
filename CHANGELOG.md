@@ -10,7 +10,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### 🔐 Release Infrastructure
 
 - Add AutoUpdate signing (minisign): keypair generated, `updater.pubkey` embedded
-- Add **portable** bundle target (in addition to NSIS / MSI)
 - Release workflow signs update packages via `TAURI_SIGNING_PRIVATE_KEY(_PASSWORD)` Secrets
 - Add issue / feature-request templates and a security note
 

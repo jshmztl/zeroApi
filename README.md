@@ -47,7 +47,6 @@
 |------|------|
 | `ZeroApi_x.x.x_x64-setup.exe` | NSIS 安装版 (推荐) |
 | `ZeroApi_x.x.x_x64-setup.msi` | MSI 安装版 |
-| `ZeroApi_x.x.x_x64-portable.exe` | 便携版 (解压即用,零安装) |
 
 > **要求**: Windows 11 (x64 / ARM64) · 系统自带 WebView2 Runtime
 
@@ -189,7 +188,7 @@ zeroapi/
 │   │   └── error.rs         # 统一错误类型
 │   ├── capabilities/        # Tauri 权限
 │   ├── icons/               # 多尺寸图标
-│   ├── tauri.conf.json      # bundle 目标: msi / nsis / portable,含 updater.pubkey
+│   ├── tauri.conf.json      # bundle 目标: msi / nsis,含 updater.pubkey
 │   └── Cargo.toml
 ├── scripts/
 │   └── gen_icons.py         # 重新生成图标
@@ -245,14 +244,13 @@ npm run tauri:build
 # 产物路径:
 #   src-tauri/target/release/bundle/msi/*.msi
 #   src-tauri/target/release/bundle/nsis/*-setup.exe   (NSIS 安装版)
-#   src-tauri/target/release/bundle/nsis/*-portable.exe (便携版)
 ```
 
 > 本地打包若想生成带签名的 `latest.json`,需要配置签名密钥(见下)。
 
 ### 自动发布 (推荐)
 
-打 tag 即触发 GitHub Actions,`build.yml` 在 **Windows x64 (`windows-latest`)** 与 **ARM64 (`windows-11-arm`)** 上并行构建,自动产出 **NSIS / MSI / 便携版** 并创建 Release(**自动发布**,无需手动 Publish):
+打 tag 即触发 GitHub Actions,`build.yml` 在 **Windows x64 (`windows-latest`)** 与 **ARM64 (`windows-11-arm`)** 上并行构建,自动产出 **NSIS / MSI** 安装包并创建 Release(**自动发布**,无需手动 Publish):
 
 ```bash
 git tag v1.2.1

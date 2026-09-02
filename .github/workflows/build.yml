@@ -76,7 +76,6 @@ jobs:
             ### 资产说明
             - `*_x64-setup.exe`  NSIS 安装版(推荐)
             - `*_x64-setup.msi`  MSI 安装版
-            - `*_x64.exe`  便携版(解压即用,零安装)
             - `latest.json`  自动更新签名清单(应用内更新依赖)
 
             > 若 `latest.json` 缺失,请检查仓库中是否已配置
