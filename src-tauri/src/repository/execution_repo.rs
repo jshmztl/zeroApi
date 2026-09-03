@@ -238,7 +238,7 @@ mod tests {
             status,
             status_text: "OK".into(),
             headers: vec![HeaderEntry::new("content-type", "application/json")],
-            body: ResponseBody::Text("{\"ok\":true}".into()),
+            body: ResponseBody::Text { text: "{\"ok\":true}".into() },
             size_bytes: 12,
             content_type: Some("application/json".into()),
             timing: Timing::total(42),

@@ -142,7 +142,7 @@ impl HttpTransport {
                 size: size_bytes,
             }
         } else {
-            ResponseBody::Text(String::from_utf8_lossy(&bytes).into_owned())
+            ResponseBody::Text { text: String::from_utf8_lossy(&bytes).into_owned() }
         };
 
         Ok(ResponseSnapshot {
