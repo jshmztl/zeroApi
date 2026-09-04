@@ -2,7 +2,9 @@
 
 use tauri::State;
 
-use crate::network::{diagnose, diagnose_proxy, DiagnosticResult, ProxyProbeResult};
+use crate::network::{
+    diagnose, diagnose_proxy, traceroute, DiagnosticResult, ProxyProbeResult, RouteResult,
+};
 use crate::AppResult;
 use crate::AppState;
 
@@ -23,4 +25,14 @@ pub async fn diagnose_proxy_network(
     proxy: String,
 ) -> AppResult<ProxyProbeResult> {
     Ok(diagnose_proxy(&target, &proxy).await)
+}
+
+/// 对目标执行逐跳路由追踪（ICMP traceroute）。
+/// 阻塞式 ICMP 调用已由 route::traceroute 放入 spawn_blocking，不会阻塞事件循环。
+#[tauri::command]
+pub async fn diagnose_route(
+    _state: State<'_, AppState>,
+    target: String,
+) -> AppResult<RouteResult> {
+    Ok(traceroute(&target).await)
 }

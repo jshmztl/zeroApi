@@ -204,6 +204,7 @@ pub fn run() {
             // Network Diagnostic
             commands::diagnostic::diagnose_network,
             commands::diagnostic::diagnose_proxy_network,
+            commands::diagnostic::diagnose_route,
         ])
         .run(tauri::generate_context!())
         .expect("启动 Tauri 应用失败");

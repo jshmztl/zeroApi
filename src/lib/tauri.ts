@@ -115,6 +115,9 @@ export const tauri = {
   /** 通过指定代理对目标做连通性诊断 */
   diagnoseProxyNetwork: (target: string, proxy: string) =>
     invoke<unknown>("diagnose_proxy_network", { target, proxy }),
+  /** 对目标做逐跳路由追踪（ICMP traceroute） */
+  diagnoseRoute: (target: string) =>
+    invoke<unknown>("diagnose_route", { target }),
 
   // ---- Cookie Session（按 Project 隔离） ----
   getSessionCookies: (projectId: string, url: string) =>

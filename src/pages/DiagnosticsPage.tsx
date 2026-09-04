@@ -15,12 +15,24 @@ import {
   Zap,
   Network,
   Waypoints,
+  Route,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { tauri } from "@/lib/tauri";
 import { toast } from "@/components/ui/Toast";
 import { cn } from "@/lib/utils";
+
+interface CertInfo {
+  depth: number;
+  subject: string;
+  issuer: string;
+  serial: string;
+  not_before: string;
+  not_after: string;
+  is_ca: boolean;
+  expired: boolean;
+}
 
 interface DiagResult {
   target: string;
@@ -29,7 +41,7 @@ interface DiagResult {
   port: number;
   dns: { ok: boolean; addresses: string[]; ms: number; error?: string };
   tcp: { ok: boolean; port: number; ms: number; error?: string };
-  tls?: { ok: boolean; ms: number; peer_cert_subject?: string; error?: string };
+  tls?: { ok: boolean; ms: number; peer_cert_subject?: string; chain?: CertInfo[]; error?: string };
   http?: { ok: boolean; status?: number; ms: number; error?: string };
   total_ms: number;
 }
@@ -42,19 +54,39 @@ interface ProxyDiagResult {
   scheme: string;
   target_host: string;
   dns: { ok: boolean; addresses: string[]; ms: number; error?: string };
-  tls?: { ok: boolean; ms: number; peer_cert_subject?: string; error?: string };
+  tls?: { ok: boolean; ms: number; peer_cert_subject?: string; chain?: CertInfo[]; error?: string };
   http?: { ok: boolean; status?: number; ms: number; error?: string };
   total_ms: number;
 }
 
+interface RouteHop {
+  ttl: number;
+  ip?: string;
+  ms: number;
+  ok: boolean;
+  reached: boolean;
+  status?: number;
+}
+
+interface RouteResult {
+  target: string;
+  resolved_ip?: string;
+  hops: RouteHop[];
+  reached: boolean;
+  max_ttl: number;
+  total_ms: number;
+  error?: string;
+}
+
 export function DiagnosticsPage() {
   const nav = useNavigate();
-  const [mode, setMode] = React.useState<"direct" | "proxy">("direct");
+  const [mode, setMode] = React.useState<"direct" | "proxy" | "route">("direct");
   const [url, setUrl] = React.useState("https://api.github.com");
   const [proxyUrl, setProxyUrl] = React.useState("http://127.0.0.1:7897");
   const [loading, setLoading] = React.useState(false);
   const [result, setResult] = React.useState<DiagResult | null>(null);
   const [proxyResult, setProxyResult] = React.useState<ProxyDiagResult | null>(null);
+  const [routeResult, setRouteResult] = React.useState<RouteResult | null>(null);
 
   const runDirect = async () => {
     if (!url.trim()) {
@@ -64,6 +96,7 @@ export function DiagnosticsPage() {
     setLoading(true);
     setResult(null);
     setProxyResult(null);
+    setRouteResult(null);
     try {
       const r = await tauri.diagnoseNetwork(url.trim());
       setResult(r as any);
@@ -86,6 +119,7 @@ export function DiagnosticsPage() {
     setLoading(true);
     setResult(null);
     setProxyResult(null);
+    setRouteResult(null);
     try {
       const r = await tauri.diagnoseProxyNetwork(url.trim(), proxyUrl.trim());
       setProxyResult(r as any);
@@ -96,7 +130,26 @@ export function DiagnosticsPage() {
     }
   };
 
-  const run = () => (mode === "proxy" ? runProxy() : runDirect());
+  const runRoute = async () => {
+    if (!url.trim()) {
+      toast.error("请输入目标地址");
+      return;
+    }
+    setLoading(true);
+    setResult(null);
+    setProxyResult(null);
+    setRouteResult(null);
+    try {
+      const r = await tauri.diagnoseRoute(url.trim());
+      setRouteResult(r as any);
+    } catch (e: any) {
+      toast.error("路由追踪失败: " + String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const run = () => (mode === "proxy" ? runProxy() : mode === "route" ? runRoute() : runDirect());
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-6 space-y-5">
@@ -115,7 +168,11 @@ export function DiagnosticsPage() {
         <div>
           <h1 className="text-lg font-display font-semibold text-gray-900 dark:text-gray-100">网络诊断</h1>
           <p className="text-xs text-gray-500 dark:text-gray-500">
-            {mode === "proxy" ? "通过代理探测目标连通性（代理 TCP → CONNECT 隧道 → 经代理请求）" : "DNS → TCP → TLS → HTTP 全链路探测（内网环境友好）"}
+            {mode === "proxy"
+              ? "通过代理探测目标连通性（代理 TCP → CONNECT 隧道 → 经代理请求）"
+              : mode === "route"
+                ? "逐跳路由追踪（ICMP traceroute，无需管理员权限，仅 IPv4）"
+                : "DNS → TCP → TLS → HTTP 全链路探测（内网环境友好）"}
           </p>
         </div>
       </div>
@@ -140,6 +197,16 @@ export function DiagnosticsPage() {
         >
           <Waypoints className="h-3.5 w-3.5" />
           代理探针
+        </button>
+        <button
+          onClick={() => setMode("route")}
+          className={cn(
+            "px-3 py-1.5 rounded-lg transition-colors inline-flex items-center gap-1",
+            mode === "route" ? "bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm" : "text-gray-500 dark:text-gray-400",
+          )}
+        >
+          <Route className="h-3.5 w-3.5" />
+          路由追踪
         </button>
       </div>
 
@@ -196,6 +263,7 @@ export function DiagnosticsPage() {
 
       {!loading && mode === "direct" && result && <DirectResult result={result} />}
       {!loading && mode === "proxy" && proxyResult && <ProxyResult result={proxyResult} proxyUrl={proxyUrl} />}
+      {!loading && mode === "route" && routeResult && <RouteResultView result={routeResult} />}
     </div>
   );
 }
@@ -209,6 +277,7 @@ function DirectResult({ result }: { result: DiagResult }) {
       {result.tls && (
         <DiagRow icon={<ShieldCheck className="h-4 w-4" />} label="TLS 握手" ok={result.tls.ok} detail={result.tls.peer_cert_subject || result.tls.error} ms={result.tls.ms} hint={result.tls.ok ? "握手成功" : "证书/握手错误"} warn={!result.tls.ok} />
       )}
+      {result.tls?.ok && result.tls.chain && result.tls.chain.length > 0 && <CertChainView chain={result.tls.chain} />}
       {result.http && (
         <DiagRow icon={<Zap className="h-4 w-4" />} label="HTTP 探测" ok={result.http.ok} detail={result.http.status ? `HTTP ${result.http.status}` : result.http.error} ms={result.http.ms} hint={result.http.status ? `状态码 ${result.http.status}` : "请求失败"} warn={result.http.status != null && result.http.status >= 400} />
       )}
@@ -222,6 +291,113 @@ function DirectResult({ result }: { result: DiagResult }) {
       {result.tcp.ok && result.tls && !result.tls.ok && (
         <Advice title="TLS 证书错误" items={["确认证书是否过期", "内网自签名证书需在设置中关闭 SSL 验证", "检查 SNI / 服务器名称是否匹配"]} />
       )}
+    </div>
+  );
+}
+
+function RouteResultView({ result }: { result: RouteResult }) {
+  return (
+    <div className="space-y-3 animate-fade-in">
+      <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div className="min-w-0">
+            <div className="text-sm font-medium text-gray-800 dark:text-gray-200 font-mono truncate">{result.target}</div>
+            <div className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
+              {result.resolved_ip ? (
+                <>
+                  <span className="font-mono">解析: {result.resolved_ip}</span>
+                  <span>· {result.reached ? "已到达目标" : "未到达目标"}</span>
+                </>
+              ) : (
+                result.error
+              )}
+            </div>
+          </div>
+          <div className="text-right flex-shrink-0">
+            <div className={cn("text-lg font-semibold", result.reached ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400")}>
+              {result.reached ? "可达" : "未达"}
+            </div>
+            <div className="text-[10px] text-gray-400">{result.total_ms}ms</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm">
+        <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 font-mono">目标逐跳路径</div>
+        {result.hops.length === 0 ? (
+          <div className="text-xs text-gray-400">{result.error || "无可展示的跳点"}</div>
+        ) : (
+          <ol className="space-y-1">
+            {result.hops.map((h, i) => (
+              <li key={i} className="flex items-center gap-2 text-xs font-mono">
+                <span className="w-6 text-gray-400 flex-shrink-0">{h.ttl}</span>
+                <span className="text-right w-12 flex-shrink-0 text-gray-400">{h.ms}ms</span>
+                {h.ok && h.ip ? (
+                  <span className={cn("text-gray-800 dark:text-gray-200 truncate", h.reached && "text-emerald-600 dark:text-emerald-400 font-medium")}>{h.ip}</span>
+                ) : (
+                  <span className="text-gray-400">* 无响应{routeStatusLabel(h.status)}</span>
+                )}
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
+
+      {result.hops.length > 0 && !result.reached && (
+        <Advice title="未在最大 TTL 内到达目标" items={["部分三层设备会静默丢弃 ICMP（跳点显示 '*' 属正常）", "确认目标允许 ICMP 回显", "可用「直连诊断」确认目标 DNS/TCP 是否本身可达"]} />
+      )}
+    </div>
+  );
+}
+
+function routeStatusLabel(s?: number) {
+  if (!s) return "";
+  if (s === 11010) return "（请求超时）";
+  if (s === 11013) return "（TTL 超时）";
+  if ([11002, 11003, 11017, 11018].includes(s)) return "（目标不可达）";
+  return `（状态 ${s}）`;
+}
+
+function CertChainView({ chain }: { chain: CertInfo[] }) {
+  return (
+    <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm">
+      <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 font-mono">证书链（{chain.length} 级）</div>
+      <ol className="space-y-2">
+        {chain.map((c, i) => {
+          const expired = c.expired;
+          return (
+            <li key={i} className="rounded-xl border border-gray-100 dark:border-gray-800 p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="text-xs font-medium text-gray-800 dark:text-gray-200 font-mono truncate">
+                    {c.subject}
+                    <span className="ml-1.5 text-[10px] text-gray-400">（深度 {c.depth}）</span>
+                    {c.is_ca && (
+                      <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300">CA</span>
+                    )}
+                  </div>
+                  <div className="text-[10px] text-gray-400 font-mono mt-0.5 truncate">签发: {c.issuer}</div>
+                </div>
+                <span
+                  className={cn(
+                    "inline-flex flex-shrink-0 items-center px-1.5 py-0.5 rounded text-[9px] font-medium",
+                    expired
+                      ? "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400"
+                      : "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400",
+                  )}
+                >
+                  {expired ? "已过期" : "有效"}
+                </span>
+              </div>
+              <div className="text-[10px] text-gray-400 font-mono mt-1.5 flex items-center gap-2">
+                <span>有效期 {c.not_before} ~ {c.not_after}</span>
+                <span className="text-gray-300 dark:text-gray-600">|</span>
+                <span>序列号 {c.serial}</span>
+              </div>
+            </li>
+          );
+        })}
+      </ol>
     </div>
   );
 }

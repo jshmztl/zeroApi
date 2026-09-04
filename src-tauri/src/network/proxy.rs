@@ -19,7 +19,7 @@ use super::diagnostic::{parse_target, HttpProbeResult};
 use super::dns::resolve;
 use super::tcp::connect;
 use super::tls::TlsResult;
-use super::tls::{build_connector, x509_parser_subject};
+use super::tls::{build_chain_info, build_connector};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ProxyProbeResult {
@@ -90,6 +90,7 @@ pub async fn diagnose_proxy(target: &str, proxy_url: &str) -> ProxyProbeResult {
             ok: false,
             ms: 0,
             peer_cert_subject: None,
+            chain: Vec::new(),
             error: Some("代理不可达，跳过 TLS 探测".into()),
         })
     } else {
@@ -187,17 +188,18 @@ async fn tls_through_proxy(
 
     match connector.connect(name, stream).await {
         Ok(tls) => {
-            let peer_cert_subject = tls
+            let chain = tls
                 .get_ref()
                 .1
                 .peer_certificates()
-                .and_then(|certs| certs.first())
-                .map(|c| c.as_ref())
-                .and_then(|der| x509_parser_subject(der).or_else(|| Some("(证书主题不可解析)".to_string())));
+                .map(|certs| build_chain_info(certs))
+                .unwrap_or_default();
+            let peer_cert_subject = chain.first().map(|c| c.subject.clone());
             TlsResult {
                 ok: true,
                 ms: start.elapsed().as_millis() as u64,
                 peer_cert_subject,
+                chain,
                 error: None,
             }
         }
@@ -235,6 +237,7 @@ fn tls_fail(start: &Instant, error: Option<String>) -> TlsResult {
         ok: false,
         ms: start.elapsed().as_millis() as u64,
         peer_cert_subject: None,
+        chain: Vec::new(),
         error,
     }
 }

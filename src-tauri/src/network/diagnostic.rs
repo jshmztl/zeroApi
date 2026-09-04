@@ -56,6 +56,7 @@ pub async fn diagnose(target: &str) -> DiagnosticResult {
                 ok: false,
                 ms: 0,
                 peer_cert_subject: None,
+                chain: Vec::new(),
                 error: Some("TCP 连接失败，跳过 TLS 探测".to_string()),
             })
         }

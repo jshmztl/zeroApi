@@ -35,6 +35,9 @@ src-tauri/gen/schemas
 # 自动更新签名私钥与密码（禁止提交！）
 src-tauri/.signing/
 
+# 发布签名 / 构建产物（禁止提交）
+artifacts/
+
 # TS Build artifacts
 *.tsbuildinfo
 vite.config.d.ts
