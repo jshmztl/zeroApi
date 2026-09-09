@@ -27,6 +27,9 @@ pub enum AppError {
     #[error("cURL 解析错误: {0}")]
     Curl(String),
 
+    #[error("Secret 加密错误: {0}")]
+    SecretEncrypt(String),
+
     #[error("{0}")]
     Other(String),
 }

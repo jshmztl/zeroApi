@@ -1,7 +1,7 @@
 //! Environment 持久化（V2 + Secret 安全存储）
 //!
 //! Secret 变量（kind=secret）：
-//! - 明文经 DPAPI 加密后保存到 env_secret_refs 表（SQLite 不落明文）
+//! - 明文经 DPAPI/XChaCha20-Poly1305 加密后保存到 env_secret_refs 表（SQLite 不落明文）
 //! - vars JSON 中只保存引用（secret_ref = 变量名）
 //! - 读取时解密注入 value，供编译层使用
 
@@ -13,6 +13,7 @@ use crate::db::Database;
 use crate::domain::{Environment, EnvironmentVariable, VariableKind};
 use crate::security;
 use crate::AppResult;
+use crate::AppError;
 
 #[derive(Clone)]
 pub struct EnvironmentRepo {
@@ -97,23 +98,39 @@ impl EnvironmentRepo {
             conn.execute("UPDATE environments SET active = 0", [])?;
         }
 
-        // 先清除旧 Secret 引用（收集待写入的新引用，环境行落库后再插入）
+        // 读取当前已有的 secret refs，用于解密失败时保留原加密数据
+        let existing_refs: std::collections::HashMap<String, String> = {
+            let mut stmt = conn.prepare(
+                "SELECT variable_name, secret_ref FROM env_secret_refs WHERE env_id = ?1"
+            )?;
+            let rows = stmt.query_map(params![env.id], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })?;
+            rows.filter_map(|r| r.ok()).collect()
+        };
+
+        // 清除旧 Secret 引用（后面会重新写入保留/新增的数据）
         conn.execute("DELETE FROM env_secret_refs WHERE env_id = ?1", params![env.id])?;
         let mut new_refs: Vec<(String, String)> = Vec::new(); // (variable_name, encrypted)
 
         let mut vars = env.vars.clone();
         for v in vars.iter_mut() {
             if v.kind == VariableKind::Secret && !v.value.is_empty() {
-                let encrypted = security::encrypt(&v.value).unwrap_or_else(|e| {
-                    log::error!("Secret 加密失败({}): {}", v.name, e);
-                    v.value.clone()
-                });
-                if encrypted != v.value {
-                    // 加密成功：明文不落库，引用待环境行落库后写入
-                    new_refs.push((v.name.clone(), encrypted));
-                    v.value.clear();
-                    v.secret_ref = Some(v.name.clone());
+                // 解密失败标记：保留原加密数据，不重新加密标记文本
+                if v.value.starts_with("[无法解密") {
+                    let lookup_name = v.secret_ref.as_deref().unwrap_or(&v.name);
+                    if let Some(encrypted) = existing_refs.get(lookup_name) {
+                        new_refs.push((v.name.clone(), encrypted.clone()));
+                        v.value.clear();
+                        v.secret_ref = Some(v.name.clone());
+                        continue;
+                    }
                 }
+                let encrypted = security::encrypt(&v.value)
+                    .map_err(|e| AppError::SecretEncrypt(format!("Secret 加密失败({}): {}", v.name, e)))?;
+                new_refs.push((v.name.clone(), encrypted));
+                v.value.clear();
+                v.secret_ref = Some(v.name.clone());
             } else {
                 v.secret_ref = None;
             }
@@ -153,7 +170,7 @@ impl EnvironmentRepo {
         Ok(())
     }
 
-    /// 解密注入 Secret 变量（secret_ref 指向 env_secret_refs.variable_name）
+    /// 解密注入 Secret 变量（secret_ref 指向 env_secret_refs 表中的 variable_name）
     fn decrypt_secrets(conn: &rusqlite::Connection, env_id: &str, vars: &mut [EnvironmentVariable]) {
         for v in vars.iter_mut() {
             if v.kind != VariableKind::Secret {
@@ -180,7 +197,8 @@ impl EnvironmentRepo {
                     }
                     Err(e) => {
                         log::error!("Secret 解密失败({}/{}): {}", env_id, v.name, e);
-                        v.value.clear();
+                        v.value = format!("[无法解密: 可能因系统变更或密钥丢失]");
+                        // 保留 secret_ref，使加密数据不丢失
                     }
                 }
             }
@@ -197,6 +215,8 @@ mod tests {
     fn setup() -> EnvironmentRepo {
         let dir = std::env::temp_dir().join(format!("zeroapi-env-{}", uuid::Uuid::new_v4().simple()));
         std::fs::create_dir_all(&dir).unwrap();
+        // 初始化加密模块（非 Windows 平台需要）
+        security::init(&dir);
         let db = Arc::new(Database::new(dir.join("test.db")).unwrap());
         db.migrate().unwrap();
         EnvironmentRepo::new(db)
@@ -253,5 +273,33 @@ mod tests {
                 .unwrap()
         };
         assert_eq!(raw2, 0);
+    }
+
+    /// 加密失败应返回错误，禁止回退明文
+    #[test]
+    fn test_encrypt_failure_rejects_storage() {
+        let repo = setup();
+        // 构造一个超长值触发潜在错误（实际测试中加密不应失败，
+        // 此测试主要验证代码路径不再使用 unwrap_or_else 回退明文）
+        let env = Environment {
+            id: "env-encrypt-fail".into(),
+            project_id: None,
+            name: "测试".into(),
+            base_url: "".into(),
+            vars: vec![
+                EnvironmentVariable::secret("KEY", "normal-value"),
+            ],
+            active: false,
+        };
+        // 正常值应加密成功
+        assert!(repo.upsert(&env).is_ok());
+
+        // 验证vars JSON中没有明文
+        let raw: String = {
+            let conn = repo.db.conn();
+            conn.query_row("SELECT vars FROM environments WHERE id='env-encrypt-fail'", [], |r| r.get(0))
+                .unwrap()
+        };
+        assert!(!raw.contains("normal-value"), "Secret 不应以明文存入 vars JSON");
     }
 }

@@ -266,28 +266,31 @@ pub fn to_curl(request: &Request) -> String {
         let sep = if url.contains('?') { "&" } else { "?" };
         let qs: Vec<String> = query_pairs
             .iter()
-            .map(|(k, v)| format!("{}={}", k, v))
+            .map(|(k, v)| format!("{}={}", urlencoding::encode(k), urlencoding::encode(v)))
             .collect();
         url = format!("{}{}{}", url, sep, qs.join("&"));
     }
-    parts.push(format!("'{}'", url.replace('\'', "'\\''")));
+    parts.push(shell_escape(&url));
 
     // Headers
     for h in &request.headers {
-        parts.push(format!("-H '{}: {}'", h.name, h.value.replace('\'', "'\\''")));
+        parts.push(format!("-H {}", shell_escape(&format!("{}: {}", h.name, h.value))));
     }
 
     // Auth
     match request.effective_auth() {
         AuthConfig::None => {}
         AuthConfig::Bearer { token } if !token.is_empty() => {
-            parts.push(format!("-H 'Authorization: Bearer {}'", token.replace('\'', "'\\''")));
+            parts.push(format!(
+                "-H {}",
+                shell_escape(&format!("Authorization: Bearer {}", token))
+            ));
         }
         AuthConfig::Basic { username, password } => {
-            parts.push(format!("-u '{}:{}'", username, password));
+            parts.push(format!("-u {}", shell_escape(&format!("{}:{}", username, password))));
         }
         AuthConfig::ApiKey { key, value, location } if location.eq_ignore_ascii_case("header") && !key.is_empty() => {
-            parts.push(format!("-H '{}: {}'", key, value));
+            parts.push(format!("-H {}", shell_escape(&format!("{}: {}", key, value))));
         }
         _ => {}
     }
@@ -296,27 +299,32 @@ pub fn to_curl(request: &Request) -> String {
     match request.effective_body() {
         RequestBody::None => {}
         RequestBody::Raw { content, .. } if !content.is_empty() => {
-            parts.push(format!("--data-raw '{}'", content.replace('\'', "'\\''")));
+            parts.push(format!("--data-raw {}", shell_escape(&content)));
         }
         RequestBody::UrlEncoded { items } => {
             let pairs: Vec<String> = items
                 .iter()
                 .filter(|kv| kv.enabled && !kv.name.is_empty())
-                .map(|kv| format!("{}={}", kv.name, kv.value))
+                .map(|kv| format!("{}={}", urlencoding::encode(&kv.name), urlencoding::encode(&kv.value)))
                 .collect();
             if !pairs.is_empty() {
-                parts.push(format!("--data '{}'", pairs.join("&")));
+                parts.push(format!("--data {}", shell_escape(&pairs.join("&"))));
             }
         }
         RequestBody::FormData { items } => {
             for kv in items.iter().filter(|kv| kv.enabled && !kv.name.is_empty()) {
-                parts.push(format!("-F '{}={}'", kv.name, kv.value));
+                parts.push(format!("-F {}", shell_escape(&format!("{}={}", kv.name, kv.value))));
             }
         }
         _ => {}
     }
 
     parts.join(" ")
+}
+
+/// Shell 单引号包裹转义：将值用单引号包裹，内部单引号转为 `'\''`
+fn shell_escape(s: &str) -> String {
+    format!("'{}'", s.replace('\'', "'\\''"))
 }
 
 /// 把 token 拆成 shell token,处理引号与转义
@@ -466,5 +474,39 @@ mod tests {
         let c = to_curl(&r);
         assert!(c.contains("-u 'admin:secret'"));
         assert!(c.contains("a=1"));
+    }
+
+    #[test]
+    fn test_shell_escape_single_quote() {
+        assert_eq!(shell_escape("it's"), "'it'\\''s'");
+    }
+
+    #[test]
+    fn test_to_curl_url_encoding() {
+        let mut req = Request {
+            id: String::new(),
+            collection_id: String::new(),
+            folder_id: None,
+            name: "test".into(),
+            method: HttpMethod::Get,
+            url: "https://api.example.com".into(),
+            headers: vec![],
+            query: vec![KeyValue::new("key", "value with spaces & stuff=")],
+            body: None,
+            auth: None,
+            sort_order: 0,
+            created_at: 0,
+            updated_at: 0,
+        };
+        let c = to_curl(&req);
+        assert!(c.contains("key=value+with+spaces+%26+stuff%3D"), "query 参数应被 URL 编码");
+    }
+
+    #[test]
+    fn test_shell_escape_command_injection_safety() {
+        let malicious = "$(rm -rf /)";
+        let escaped = shell_escape(malicious);
+        // 单引号内 $、`、\ 均不被 shell 解释，只有单引号本身需要转义
+        assert_eq!(escaped, "'$(rm -rf /)'");
     }
 }

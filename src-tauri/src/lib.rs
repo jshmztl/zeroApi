@@ -118,6 +118,9 @@ pub fn run() {
             let db = Arc::new(Database::new(app_dir.join("zeroapi.db"))?);
             db.migrate()?;
 
+            // 初始化非 Windows 平台的加密密钥
+            security::init(&app_dir);
+
             let repos = Repos::new(db.clone());
             let settings = repos.settings.get().unwrap_or_default();
 

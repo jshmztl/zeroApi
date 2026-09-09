@@ -43,7 +43,9 @@ const PROXY_DEFAULT_PORTS: [(&str, u16); 4] = [("http", 80), ("https", 443), ("s
 const PROXY_RESPONSE_OK: &str = "200";
 
 /// 通过指定代理对目标执行连通性探测
-pub async fn diagnose_proxy(target: &str, proxy_url: &str) -> ProxyProbeResult {
+/// 
+/// `skip_cert_verify`: 是否跳过 TLS 证书验证（仅在用户设置中关闭 verify_ssl 时启用）
+pub async fn diagnose_proxy(target: &str, proxy_url: &str, skip_cert_verify: bool) -> ProxyProbeResult {
     let start = Instant::now();
     let proxy_url = proxy_url.trim();
     let target = target.trim();
@@ -101,12 +103,14 @@ pub async fn diagnose_proxy(target: &str, proxy_url: &str) -> ProxyProbeResult {
     let http = if scheme == "http" || scheme == "https" {
         let probe_start = Instant::now();
         let proxy_result = reqwest::Proxy::all(format!("{}://{}:{}", proxy_scheme, proxy_host, proxy_port));
+        let mut client_builder = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(8));
+        if skip_cert_verify {
+            log::warn!("代理探测: 用户已关闭证书验证，跳过 TLS 证书检查");
+            client_builder = client_builder.danger_accept_invalid_certs(true);
+        }
         let client = match proxy_result {
-            Ok(proxy) => reqwest::Client::builder()
-                .timeout(std::time::Duration::from_secs(8))
-                .danger_accept_invalid_certs(true)
-                .proxy(proxy)
-                .build(),
+            Ok(proxy) => client_builder.proxy(proxy).build(),
             Err(e) => Err(e),
         };
         match client {

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { tauri } from '@/lib/tauri';
+import { toast } from '@/components/ui/Toast';
 import type {
   ExecutionListItem,
   Favorite,
@@ -62,7 +63,9 @@ export const useDataStore = create<DataState>((set, get) => ({
       const h = await tauri.listHistory(100);
       set({ history: h });
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
       console.error(e);
+      toast.error(`加载历史记录失败: ${msg}`);
     }
   },
   loadFavorites: async () => {
@@ -70,7 +73,9 @@ export const useDataStore = create<DataState>((set, get) => ({
       const f = await tauri.listFavorites();
       set({ favorites: f });
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
       console.error(e);
+      toast.error(`加载收藏夹失败: ${msg}`);
     }
   },
   loadCollections: async () => {
@@ -78,7 +83,9 @@ export const useDataStore = create<DataState>((set, get) => ({
       const c = await tauri.listCollections();
       set({ collections: c });
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
       console.error(e);
+      toast.error(`加载集合失败: ${msg}`);
     }
   },
   loadFolders: async (collectionId?: string) => {
@@ -86,7 +93,9 @@ export const useDataStore = create<DataState>((set, get) => ({
       const f = await tauri.listFolders(collectionId);
       set({ folders: f });
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
       console.error(e);
+      toast.error(`加载文件夹失败: ${msg}`);
     }
   },
   loadRequests: async (collectionId?: string) => {
@@ -94,7 +103,9 @@ export const useDataStore = create<DataState>((set, get) => ({
       const r = await tauri.listRequests(collectionId);
       set({ requests: r });
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
       console.error(e);
+      toast.error(`加载请求失败: ${msg}`);
     }
   },
   loadEnvironments: async () => {
@@ -103,7 +114,9 @@ export const useDataStore = create<DataState>((set, get) => ({
       const active = e.find((x) => x.active);
       set({ environments: e, activeEnvId: active?.id ?? null });
     } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
       console.error(err);
+      toast.error(`加载环境变量失败: ${msg}`);
     }
   },
   loadProjects: async () => {
@@ -111,7 +124,9 @@ export const useDataStore = create<DataState>((set, get) => ({
       const p = await tauri.listProjects();
       set({ projects: p });
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
       console.error(e);
+      toast.error(`加载项目失败: ${msg}`);
     }
   },
   clearHistory: async () => {

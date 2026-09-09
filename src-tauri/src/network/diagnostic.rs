@@ -33,7 +33,9 @@ pub struct DiagnosticResult {
 const DEFAULT_PORTS: [(&str, u16); 3] = [("https", 443), ("http", 80), ("wss", 443)];
 
 /// 对目标执行网络诊断
-pub async fn diagnose(target: &str) -> DiagnosticResult {
+/// 
+/// `skip_cert_verify`: 是否跳过 TLS 证书验证（仅在用户设置中关闭 verify_ssl 时启用）
+pub async fn diagnose(target: &str, skip_cert_verify: bool) -> DiagnosticResult {
     let start = Instant::now();
     let target = target.trim();
 
@@ -67,10 +69,13 @@ pub async fn diagnose(target: &str) -> DiagnosticResult {
     // 4. HTTP 探测（GET path，短超时）
     let http = if scheme == "http" || scheme == "https" {
         let probe_start = Instant::now();
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(5))
-            .danger_accept_invalid_certs(true)
-            .build();
+        let mut client_builder = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(5));
+        if skip_cert_verify {
+            log::warn!("诊断探测: 用户已关闭证书验证，跳过 TLS 证书检查");
+            client_builder = client_builder.danger_accept_invalid_certs(true);
+        }
+        let client = client_builder.build();
         match client {
             Ok(c) => {
                 let url = format!("{}://{}:{}{}", scheme, host, port, path);
